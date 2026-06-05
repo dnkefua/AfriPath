@@ -1,0 +1,6 @@
+{
+  "name": "AfriPath",
+  "description": "Access fully funded scholarships, verified international visas, and global career sponsorships in a unified path.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
