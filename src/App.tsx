@@ -38,6 +38,7 @@ import { ActiveTrackWidget } from "./components/ActiveTrackWidget";
 import { OpportunityDetailView } from "./components/OpportunityDetailView";
 import { SponsorshipDirectory } from "./components/SponsorshipDirectory";
 import { VisaProgressTracker } from "./components/VisaProgressTracker";
+import { APP_URL } from "./config";
 
 export default function App() {
   // Navigation & Page State
@@ -289,6 +290,17 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3 relative">
+          <a
+            href={APP_URL}
+            target="_blank"
+            rel="noreferrer"
+            title="Open hosted AfriPath app"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full border border-cyan-400/20 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-950/60 hover:text-cyan-200 transition-colors text-[10px] font-mono font-bold uppercase tracking-wider"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Live</span>
+          </a>
+
           {/* Notifications Trigger */}
           <button
             onClick={() => setShowNotifications(!showNotifications)}
