@@ -27,14 +27,14 @@ export const ActiveTrackWidget: React.FC<ActiveTrackWidgetProps> = ({
   };
 
   return (
-    <div id={`active-track-${track.id}`} className="glass-panel p-6 rounded-3xl relative overflow-hidden border border-white/10 hover:border-cyan-400/20 transition-all">
+    <div id={`active-track-${track.id}`} className="glass-panel p-6 rounded-3xl relative overflow-hidden hover:border-[#ffb690] transition-all">
       <div className="relative z-10 space-y-4">
         <div className="flex justify-between items-start">
           <div>
-            <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-cyan-400">BENCHMARK PIPELINE</h4>
-            <p className="text-sm font-semibold text-slate-100 mt-1 leading-tight">{track.opportunityTitle}</p>
+            <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#9d4300]">BENCHMARK PIPELINE</h4>
+            <p className="text-sm font-semibold text-[#0b1c30] mt-1 leading-tight">{track.opportunityTitle}</p>
           </div>
-          <span className="text-[10px] font-mono font-bold tracking-tight px-3 py-1 bg-white/5 border border-white/10 text-slate-300 rounded-full shadow-sm whitespace-nowrap">
+          <span className="text-[10px] font-mono font-bold tracking-tight px-3 py-1 bg-[#eff4ff] border border-[#d3e4fe] text-[#45464d] rounded-full shadow-sm whitespace-nowrap">
             Phase {track.currentPhase}/{track.totalPhases}
           </span>
         </div>
@@ -52,10 +52,10 @@ export const ActiveTrackWidget: React.FC<ActiveTrackWidgetProps> = ({
                 className="h-2 flex-grow rounded-full transition-all duration-500 relative"
                 style={{
                   backgroundColor: isCompleted 
-                    ? "#06b6d4" // cyan
+                    ? "#131b2e" // deep navy
                     : isActive 
                     ? "#fd761a" // orange
-                    : "rgba(255, 255, 255, 0.1)"
+                    : "#d3e4fe"
                 }}
               >
                 {isActive && (
@@ -70,23 +70,20 @@ export const ActiveTrackWidget: React.FC<ActiveTrackWidgetProps> = ({
         </div>
 
         {/* Phase Action Details */}
-        <div className="flex justify-between items-center bg-white/5 px-4 py-2.5 rounded-xl text-xs text-slate-300 border border-white/5">
-          <span className="font-mono text-[10px] text-slate-400 font-semibold">STAGE:</span>
-          <span className="font-medium text-cyan-300">{track.phases[track.currentPhase - 1]}</span>
+        <div className="flex justify-between items-center bg-[#eff4ff] px-4 py-2.5 rounded-xl text-xs text-[#45464d] border border-[#d3e4fe]">
+          <span className="font-mono text-[10px] text-[#76777d] font-semibold">STAGE:</span>
+          <span className="font-medium text-[#131b2e]">{track.phases[track.currentPhase - 1]}</span>
         </div>
 
         <button 
           id={`btn-continue-${track.id}`}
           onClick={() => setShowUpdateModal(true)}
-          className="w-full py-3 bg-cyan-500 text-black hover:bg-cyan-400 rounded-xl text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-cyan-500/10 glow-cyan"
+          className="w-full py-3 bg-[#131b2e] text-white hover:bg-black rounded-lg text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-[#131b2e]/10"
         >
           <span>Check Milestone Roadmap</span>
-          <ArrowRight className="w-4 h-4 text-black" />
+          <ArrowRight className="w-4 h-4 text-white" />
         </button>
       </div>
-
-      {/* Background soft ambient gradient circle */}
-      <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#06b6d4]/10 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* Stepper Details / Progress Update Modal Overlay */}
       <AnimatePresence>
@@ -191,4 +188,3 @@ export const ActiveTrackWidget: React.FC<ActiveTrackWidgetProps> = ({
     </div>
   );
 };
-

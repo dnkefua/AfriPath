@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   GraduationCap,
   Users,
@@ -6,6 +6,8 @@ import {
   Search,
   SlidersHorizontal,
   Bell,
+  Database,
+  Download,
   Plus,
   Home as HomeIcon,
   Search as SearchIcon,
@@ -19,19 +21,33 @@ import {
   X,
   Sliders,
   Heart,
-  Globe
+  Globe,
+  Briefcase,
+  ClipboardList,
+  FileCheck,
+  FileText,
+  FolderOpen,
+  UploadCloud
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { Opportunity, ActiveTrack, UserProfile, SponsoredJob } from "./types";
 import {
-  OPPORTUNITIES,
-  DIRECTORY_ENTRIES,
+  AfriPathDataset,
+  ApplicantCredential,
+  ApplicationDocument,
+  ApplicationRecord,
+  ApplicationTask,
+  BackendSyncResult,
+  BackendSyncSnapshot,
+  OpportunityCurationLead,
+  Opportunity,
+  ActiveTrack,
+  UserProfile,
+  SponsoredJob,
+  UserPreferences,
+} from "./types";
+import {
   INITIAL_ACTIVE_TRACKS,
   USER_PROFILES,
-  VISA_FREE_PROGRAMS,
-  VISA_SPONSORED_PROGRAMS,
-  APPROVED_SPONSOR_COMPANIES,
-  APPROVED_SPONSOR_JOBS
 } from "./data";
 import { OpportunityCard } from "./components/OpportunityCard";
 import { ActiveTrackWidget } from "./components/ActiveTrackWidget";
@@ -39,17 +55,75 @@ import { OpportunityDetailView } from "./components/OpportunityDetailView";
 import { SponsorshipDirectory } from "./components/SponsorshipDirectory";
 import { VisaProgressTracker } from "./components/VisaProgressTracker";
 import { APP_URL } from "./config";
+import { DEFAULT_USER_PREFERENCES, scoreOpportunityMatch } from "./matching";
+import { afripathApi } from "./services/afripathApi";
+import { backendSync } from "./services/backendSync";
+
+const loadUserPreferences = (): UserPreferences => {
+  const saved = localStorage.getItem("afripath_preferences");
+  if (!saved) return DEFAULT_USER_PREFERENCES;
+
+  try {
+    return { ...DEFAULT_USER_PREFERENCES, ...JSON.parse(saved) };
+  } catch {
+    return DEFAULT_USER_PREFERENCES;
+  }
+};
+
+const STUDY_FIELDS = ["Engineering", "Medicine", "Social Sciences", "Information Technology"];
+const DESTINATION_REGIONS = ["All", "United Kingdom", "Canada", "Germany", "USA", "Remote"];
+const PASSPORT_COUNTRIES = ["Nigeria", "Ghana", "Kenya", "Rwanda", "South Africa"];
+const OPPORTUNITY_GOALS: UserPreferences["opportunityGoal"][] = ["Scholarship", "Career", "Research", "Volunteer", "Any"];
+const URGENCY_OPTIONS: UserPreferences["urgency"][] = ["Flexible", "Soon", "Urgent"];
+type AppTab = "home" | "search" | "visahub" | "command" | "saved";
+
+const APPLICATION_STATUS_FLOW: ApplicationRecord["status"][] = ["Tracked", "Applied", "Reviewing", "Completed"];
+const CURATION_STATUS_FLOW: OpportunityCurationLead["status"][] = ["New", "Researching", "Verified", "Published"];
+const CURATION_TYPE_OPTIONS: Opportunity["type"][] = ["School", "Fellowship", "Job", "Volunteer", "Workshop", "Conference", "Seminar"];
+const AFRIPATH_LOGO_SRC = "/assets/afripath-logo.png";
+const AFRIPATH_3D_INTRO_SRC = "/assets/afripath-3d-logo-intro.mp4";
 
 export default function App() {
   // Navigation & Page State
-  const [activeTab, setActiveTab ] = useState<"home" | "search" | "visahub" | "saved">("home");
-  const [lastTab, setLastTab] = useState<"home" | "search" | "visahub" | "saved">("home");
+  const [activeTab, setActiveTab ] = useState<AppTab>("home");
+  const [lastTab, setLastTab] = useState<AppTab>("home");
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
 
   // User & Global Session State
   const [currentUserIdx, setCurrentUserIdx] = useState<number>(0);
   const user = USER_PROFILES[currentUserIdx];
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showPreferenceEditor, setShowPreferenceEditor] = useState(false);
+  const [preferences, setPreferences] = useState<UserPreferences>(loadUserPreferences);
+  const [dataset, setDataset] = useState<AfriPathDataset>({
+    opportunities: [],
+    directoryEntries: [],
+    visaFreePrograms: [],
+    visaSponsoredPrograms: [],
+    approvedSponsorCompanies: [],
+    approvedSponsorJobs: [],
+  });
+  const [applicationRecords, setApplicationRecords] = useState<ApplicationRecord[]>([]);
+  const [applicationTasks, setApplicationTasks] = useState<ApplicationTask[]>([]);
+  const [applicationDocuments, setApplicationDocuments] = useState<ApplicationDocument[]>([]);
+  const [applicantCredentials, setApplicantCredentials] = useState<ApplicantCredential[]>([]);
+  const [curationLeads, setCurationLeads] = useState<OpportunityCurationLead[]>([]);
+  const [dataSyncStatus, setDataSyncStatus] = useState<"loading" | "synced" | "offline">("loading");
+  const [lastSyncedAt, setLastSyncedAt] = useState<string>("");
+  const [backendSyncResult, setBackendSyncResult] = useState<BackendSyncResult>({
+    status: "idle",
+    endpoint: backendSync.getEndpoint(),
+    message: "Ready to push a signed-off snapshot to the configured backend.",
+  });
+
+  const {
+    opportunities,
+    directoryEntries,
+    visaFreePrograms,
+    visaSponsoredPrograms,
+    approvedSponsorCompanies,
+    approvedSponsorJobs,
+  } = dataset;
 
   // Persisted bookmarks & custom tracks via standard browser client key-value state
   const [savedIds, setSavedIds] = useState<string[]>(() => {
@@ -102,6 +176,15 @@ export default function App() {
     stepsText: "Review Documents, Submit Form, Visa Booking, Ready"
   });
 
+  const [curationLeadForm, setCurationLeadForm] = useState({
+    title: "",
+    type: "School" as Opportunity["type"],
+    region: "United Kingdom",
+    sourceUrl: "",
+    notes: "",
+    priority: "High" as OpportunityCurationLead["priority"],
+  });
+
   // Success alert overlay status
   const [successAlert, setSuccessAlert] = useState<string | null>(null);
 
@@ -113,6 +196,251 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("afripath_tracks", JSON.stringify(activeTracks));
   }, [activeTracks]);
+
+  useEffect(() => {
+    localStorage.setItem("afripath_preferences", JSON.stringify(preferences));
+  }, [preferences]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDataset = async () => {
+      setDataSyncStatus("loading");
+
+      try {
+        const [nextDataset, records] = await Promise.all([
+          afripathApi.getDataset(),
+          afripathApi.listApplicationRecords(),
+        ]);
+        const [tasks, documents, credentials, leads] = await Promise.all([
+          afripathApi.listApplicationTasks(),
+          afripathApi.listApplicationDocuments(),
+          afripathApi.listApplicantCredentials(),
+          afripathApi.listCurationLeads(),
+        ]);
+
+        if (!isMounted) return;
+        setDataset(nextDataset);
+        setApplicationRecords(records);
+        setApplicationTasks(tasks);
+        setApplicationDocuments(documents);
+        setApplicantCredentials(credentials);
+        setCurationLeads(leads);
+        setLastSyncedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+        setDataSyncStatus("synced");
+      } catch {
+        if (!isMounted) return;
+        setDataSyncStatus("offline");
+      }
+    };
+
+    loadDataset();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const matchInsights = useMemo(() => {
+    return Object.fromEntries(
+      opportunities.map((opp) => [opp.id, scoreOpportunityMatch(opp, preferences)]),
+    );
+  }, [opportunities, preferences]);
+
+  const topMatchedOpportunities = useMemo(() => {
+    return [...opportunities]
+      .sort((a, b) => matchInsights[b.id].score - matchInsights[a.id].score)
+      .slice(0, 3);
+  }, [matchInsights, opportunities]);
+
+  const applicationSummary = useMemo(() => {
+    return {
+      total: applicationRecords.length,
+      tracked: applicationRecords.filter((record) => record.status === "Tracked").length,
+      applied: applicationRecords.filter((record) => record.status === "Applied").length,
+      reviewing: applicationRecords.filter((record) => record.status === "Reviewing").length,
+      completed: applicationRecords.filter((record) => record.status === "Completed").length,
+    };
+  }, [applicationRecords]);
+
+  const taskSummary = useMemo(() => {
+    return {
+      total: applicationTasks.length,
+      completed: applicationTasks.filter((task) => task.completed).length,
+      highPriorityOpen: applicationTasks.filter((task) => task.priority === "High" && !task.completed).length,
+    };
+  }, [applicationTasks]);
+
+  const catalogSummary = useMemo(() => {
+    return {
+      sourceVerified: opportunities.filter((opportunity) => opportunity.sourceUrl).length,
+      internationalJobs: opportunities.filter((opportunity) => opportunity.type === "Job").length,
+      volunteerPlacements: opportunities.filter((opportunity) => opportunity.type === "Volunteer").length,
+      fullyFunded: opportunities.filter((opportunity) => opportunity.badge === "Fully Funded").length,
+    };
+  }, [opportunities]);
+
+  const curationSummary = useMemo(() => {
+    const verifiedRecords = opportunities.filter((opportunity) => opportunity.sourceUrl);
+    const recordsNeedingSource = opportunities.filter((opportunity) => !opportunity.sourceUrl);
+    const staleVerifiedRecords = verifiedRecords.filter((opportunity) => {
+      if (!opportunity.lastVerifiedAt) return true;
+      const verifiedDate = new Date(opportunity.lastVerifiedAt);
+      if (Number.isNaN(verifiedDate.getTime())) return true;
+
+      const daysSinceVerification = (Date.now() - verifiedDate.getTime()) / (1000 * 60 * 60 * 24);
+      return daysSinceVerification > 90;
+    });
+
+    return {
+      sourceCoverage: opportunities.length
+        ? Math.round((verifiedRecords.length / opportunities.length) * 100)
+        : 0,
+      publishedFromDesk: opportunities.filter((opportunity) => opportunity.id.startsWith("published-")).length,
+      needsSource: recordsNeedingSource,
+      staleVerifiedRecords,
+      leadCounts: {
+        total: curationLeads.length,
+        researching: curationLeads.filter((lead) => lead.status === "Researching").length,
+        verified: curationLeads.filter((lead) => lead.status === "Verified").length,
+        published: curationLeads.filter((lead) => lead.status === "Published").length,
+      },
+    };
+  }, [curationLeads, opportunities]);
+
+  const documentSummary = useMemo(() => {
+    return {
+      total: applicationDocuments.length,
+      ready: applicationDocuments.filter((document) => document.ready).length,
+      requiredOpen: applicationDocuments.filter(
+        (document) => document.required && !document.ready,
+      ).length,
+    };
+  }, [applicationDocuments]);
+
+  const applicantReadiness = useMemo(() => {
+    const coreCredentials = applicantCredentials.filter((credential) => credential.importance === "Core");
+    const readyCoreCredentials = coreCredentials.filter((credential) => credential.ready);
+    const readyCredentials = applicantCredentials.filter((credential) => credential.ready);
+    const readinessScore = applicantCredentials.length
+      ? Math.round((readyCredentials.length / applicantCredentials.length) * 100)
+      : 0;
+    const coreScore = coreCredentials.length
+      ? Math.round((readyCoreCredentials.length / coreCredentials.length) * 100)
+      : 0;
+
+    return {
+      readinessScore,
+      coreScore,
+      ready: readyCredentials.length,
+      total: applicantCredentials.length,
+      coreReady: readyCoreCredentials.length,
+      coreTotal: coreCredentials.length,
+      missingCore: coreCredentials.filter((credential) => !credential.ready),
+    };
+  }, [applicantCredentials]);
+
+  const priorityOpportunities = useMemo(() => {
+    return opportunities
+      .map((opportunity) => {
+        const deadlineDate = opportunity.rawDeadlineDate
+          ? new Date(opportunity.rawDeadlineDate)
+          : undefined;
+        const daysUntilDeadline = deadlineDate && !Number.isNaN(deadlineDate.getTime())
+          ? Math.ceil((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : 999;
+        const isTracked = applicationRecords.some(
+          (record) => record.category === "Opportunity" && record.sourceId === opportunity.id,
+        );
+        const deadlineBoost = daysUntilDeadline > 0 && daysUntilDeadline <= 45
+          ? 12
+          : daysUntilDeadline > 45 && daysUntilDeadline <= 120
+            ? 6
+            : 0;
+        const sourceBoost = opportunity.sourceUrl ? 10 : 0;
+        const globalPathBoost = opportunity.internationalApplicantPolicy ? 8 : 0;
+        const savedBoost = savedIds.includes(opportunity.id) ? 5 : 0;
+        const trackedPenalty = isTracked ? 18 : 0;
+        const readinessPenalty = applicantReadiness.coreScore < 75 ? 8 : 0;
+
+        return {
+          opportunity,
+          score: Math.max(
+            0,
+            (matchInsights[opportunity.id]?.score ?? 0) +
+              deadlineBoost +
+              sourceBoost +
+              globalPathBoost +
+              savedBoost -
+              trackedPenalty -
+              readinessPenalty,
+          ),
+          daysUntilDeadline,
+          isTracked,
+          blockers: applicantReadiness.missingCore.slice(0, 2).map((credential) => credential.name),
+        };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+  }, [applicantReadiness.coreScore, applicantReadiness.missingCore, applicationRecords, matchInsights, opportunities, savedIds]);
+
+  const getRecordNextAction = (record: ApplicationRecord) => {
+    if (record.status === "Tracked") return "Prepare documents and move to applied";
+    if (record.status === "Applied") return "Monitor portal, email, and sponsor replies";
+    if (record.status === "Reviewing") return "Prepare interview, visa, or follow-up evidence";
+    return "Archive evidence and capture outcome notes";
+  };
+
+  const getNextApplicationStatus = (status: ApplicationRecord["status"]) => {
+    const index = APPLICATION_STATUS_FLOW.indexOf(status);
+    return APPLICATION_STATUS_FLOW[Math.min(index + 1, APPLICATION_STATUS_FLOW.length - 1)];
+  };
+
+  const getNextCurationStatus = (status: OpportunityCurationLead["status"]) => {
+    const index = CURATION_STATUS_FLOW.indexOf(status);
+    return CURATION_STATUS_FLOW[Math.min(index + 1, CURATION_STATUS_FLOW.length - 1)];
+  };
+
+  const buildBackendSnapshot = (): BackendSyncSnapshot => ({
+    generatedAt: new Date().toISOString(),
+    dataset,
+    applicationRecords,
+    applicationTasks,
+    applicationDocuments,
+    applicantCredentials,
+    curationLeads,
+    activeTracks,
+    savedIds,
+    preferences,
+  });
+
+  const handlePushBackendSnapshot = async () => {
+    setBackendSyncResult((prev) => ({
+      ...prev,
+      status: "syncing",
+      message: "Pushing AfriPath snapshot to backend...",
+    }));
+
+    const result = await backendSync.pushSnapshot(buildBackendSnapshot());
+    setBackendSyncResult(result);
+    triggerSuccessAlert(result.status === "synced" ? "Backend sync complete." : "Backend sync needs configuration.");
+  };
+
+  const handleExportBackendSnapshot = () => {
+    const snapshot = buildBackendSnapshot();
+    const file = new Blob([JSON.stringify(snapshot, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(file);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `afripath-sync-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    triggerSuccessAlert("AfriPath backend snapshot exported.");
+  };
 
   // Handle Bookmarks
   const handleToggleSave = (opportunityId: string, e?: React.MouseEvent) => {
@@ -135,6 +463,115 @@ export default function App() {
     setTimeout(() => {
       setSuccessAlert(null);
     }, 2500);
+  };
+
+  const recordApplicationActivity = async (
+    record: Omit<ApplicationRecord, "id" | "createdAt">,
+  ) => {
+    const created = await afripathApi.createApplicationRecord(record);
+    const [tasks, documents] = await Promise.all([
+      afripathApi.listApplicationTasks(),
+      afripathApi.listApplicationDocuments(),
+    ]);
+    setApplicationRecords((prev) => [
+      created,
+      ...prev.filter(
+        (existing) => `${existing.category}:${existing.sourceId}` !== `${created.category}:${created.sourceId}`,
+      ),
+    ]);
+    setApplicationTasks(tasks);
+    setApplicationDocuments(documents);
+  };
+
+  const handleAdvanceApplicationRecord = async (record: ApplicationRecord) => {
+    const nextStatus = getNextApplicationStatus(record.status);
+    const updated = await afripathApi.updateApplicationRecordStatus(record.id, nextStatus);
+    if (!updated) return;
+
+    setApplicationRecords((prev) =>
+      prev.map((existing) => (existing.id === updated.id ? updated : existing)),
+    );
+    triggerSuccessAlert(`Application moved to ${nextStatus}.`);
+  };
+
+  const handleToggleApplicationTask = async (task: ApplicationTask) => {
+    const updated = await afripathApi.setApplicationTaskCompleted(task.id, !task.completed);
+    if (!updated) return;
+
+    setApplicationTasks((prev) =>
+      prev.map((existing) => (existing.id === updated.id ? updated : existing)),
+    );
+  };
+
+  const handleToggleApplicationDocument = async (document: ApplicationDocument) => {
+    const updated = await afripathApi.setApplicationDocumentReady(document.id, !document.ready);
+    if (!updated) return;
+
+    setApplicationDocuments((prev) =>
+      prev.map((existing) => (existing.id === updated.id ? updated : existing)),
+    );
+  };
+
+  const handleToggleApplicantCredential = async (credential: ApplicantCredential) => {
+    const updated = await afripathApi.setApplicantCredentialReady(credential.id, !credential.ready);
+    if (!updated) return;
+
+    setApplicantCredentials((prev) =>
+      prev.map((existing) => (existing.id === updated.id ? updated : existing)),
+    );
+  };
+
+  const handleCreateCurationLead = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!curationLeadForm.title.trim() || !curationLeadForm.sourceUrl.trim()) {
+      triggerSuccessAlert("Add a title and official source URL before saving the lead.");
+      return;
+    }
+
+    const created = await afripathApi.createCurationLead({
+      ...curationLeadForm,
+      title: curationLeadForm.title.trim(),
+      sourceUrl: curationLeadForm.sourceUrl.trim(),
+      notes: curationLeadForm.notes.trim() || "Needs source review, eligibility extraction, and funding validation.",
+      status: "New",
+    });
+
+    setCurationLeads((prev) => [
+      created,
+      ...prev.filter((lead) => lead.sourceUrl !== created.sourceUrl),
+    ]);
+    setCurationLeadForm((prev) => ({
+      ...prev,
+      title: "",
+      sourceUrl: "",
+      notes: "",
+    }));
+    triggerSuccessAlert("Research lead added to the curation queue.");
+  };
+
+  const handleAdvanceCurationLead = async (lead: OpportunityCurationLead) => {
+    const nextStatus = getNextCurationStatus(lead.status);
+    const updated = await afripathApi.updateCurationLeadStatus(lead.id, nextStatus);
+    if (!updated) return;
+
+    setCurationLeads((prev) =>
+      prev.map((existing) => (existing.id === updated.id ? updated : existing)),
+    );
+    triggerSuccessAlert(`Lead moved to ${nextStatus}.`);
+  };
+
+  const handlePublishCurationLead = async (lead: OpportunityCurationLead) => {
+    const result = await afripathApi.publishCurationLead(lead.id);
+    if (!result.lead || !result.opportunity) return;
+
+    const nextDataset = await afripathApi.getDataset();
+    setDataset(nextDataset);
+    setCurationLeads((prev) =>
+      prev.map((existing) => (existing.id === result.lead?.id ? result.lead : existing)),
+    );
+    setSelectedType(result.opportunity.type);
+    triggerSuccessAlert("Verified lead published into the live catalog.");
   };
 
   // Stepper milestone advancement helper
@@ -168,7 +605,14 @@ export default function App() {
       ...prev
     ]);
 
-    triggerSuccessAlert(`Applications submitted successfully! Checked track generated. 🚀`);
+    recordApplicationActivity({
+      sourceId: opportunity.id,
+      title: opportunity.title,
+      category: "Opportunity",
+      status: "Applied",
+    });
+
+    triggerSuccessAlert("Application submitted. Track generated.");
   };
 
   // Create manual track
@@ -204,7 +648,7 @@ export default function App() {
   };
 
   // Filter & Search Logic
-  const filteredOpportunities = OPPORTUNITIES.filter((opp) => {
+  const filteredOpportunities = opportunities.filter((opp) => {
     // text search matches title, location, type
     const matchesSearch =
       opp.title.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -234,8 +678,7 @@ export default function App() {
     if (sortBy === "title") {
       return a.title.localeCompare(b.title);
     }
-    // Newest / Default sorted arbitrarily
-    return 1;
+    return matchInsights[b.id].score - matchInsights[a.id].score;
   });
 
   // Toggle filter fields
@@ -246,7 +689,7 @@ export default function App() {
   };
 
   // Dynamic tab routing triggers
-  const handleCategoryClick = (categoryType: "School" | "Workshop" | "Conference" | "Seminar") => {
+  const handleCategoryClick = (categoryType: "School" | "Workshop" | "Conference" | "Seminar" | "Job" | "Volunteer") => {
     setSearchText("");
     setSelectedType(categoryType);
     setSelectedRegion("All");
@@ -256,10 +699,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen relative font-sans bg-[#020205] text-[#e2e8f0] pb-24">
+    <div className="min-h-screen relative font-sans app-shell text-[#0b1c30] pb-24">
       
       {/* Top Application Bar */}
-      <header className="w-full sticky top-0 z-40 bg-[#020205]/80 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-6 py-3">
+      <header className="w-full sticky top-0 z-40 app-header backdrop-blur-md border-b flex items-center justify-between px-6 py-3">
         <div 
           onClick={() => {
             setSelectedOpportunity(null);
@@ -267,15 +710,11 @@ export default function App() {
           }}
           className="flex items-center gap-3 cursor-pointer"
         >
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 p-0.5 border border-white/20 relative">
+          <div className="w-10 h-10 rounded-xl overflow-hidden bg-white p-0.5 border border-white/20 relative shadow-sm">
             <img
-              src={user.avatarUrl}
-              alt="User profile avatar"
-              className="w-full h-full object-cover rounded-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowProfileMenu(!showProfileMenu);
-              }}
+              src={AFRIPATH_LOGO_SRC}
+              alt="AfriPath logo"
+              className="w-full h-full object-cover rounded-lg"
               referrerPolicy="no-referrer"
             />
           </div>
@@ -283,19 +722,32 @@ export default function App() {
             <span className="font-headline text-lg font-extrabold text-white leading-none tracking-wider font-mono glow-text">
               AfriPath
             </span>
-            <span className="text-[10px] tracking-wider text-cyan-400/70 font-bold uppercase leading-none mt-1">
+            <span className="text-[10px] tracking-wider text-[#ffb690] font-bold uppercase leading-none mt-1">
               Global Opportunity Hub
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-3 relative">
+          <button
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            title="Switch active user"
+            className="hidden sm:flex w-9 h-9 rounded-full overflow-hidden bg-white/10 p-0.5 border border-white/20 hover:border-[#ffb690]/60 transition-colors"
+          >
+            <img
+              src={user.avatarUrl}
+              alt="User profile avatar"
+              className="w-full h-full object-cover rounded-full"
+              referrerPolicy="no-referrer"
+            />
+          </button>
+
           <a
             href={APP_URL}
             target="_blank"
             rel="noreferrer"
             title="Open hosted AfriPath app"
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full border border-cyan-400/20 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-950/60 hover:text-cyan-200 transition-colors text-[10px] font-mono font-bold uppercase tracking-wider"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full border border-[#ffb690]/30 bg-white/10 text-[#ffdbca] hover:bg-white/15 hover:text-white transition-colors text-[10px] font-mono font-bold uppercase tracking-wider"
           >
             <Globe className="w-3.5 h-3.5" />
             <span>Live</span>
@@ -306,8 +758,8 @@ export default function App() {
             onClick={() => setShowNotifications(!showNotifications)}
             className="p-2 text-slate-300 rounded-full hover:bg-white/10 transition-colors relative cursor-pointer"
           >
-            <Bell className="w-5 h-5 text-cyan-400" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan-400 rounded-full glow-cyan"></span>
+            <Bell className="w-5 h-5 text-[#ffb690]" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#fd761a] rounded-full glow-cyan"></span>
           </button>
 
           {/* Profile Switcher Menu */}
@@ -394,7 +846,7 @@ export default function App() {
                 isSaved={savedIds.includes(selectedOpportunity.id)}
                 onToggleSave={(id) => handleToggleSave(id)}
                 onApplySuccess={handleApplySuccess}
-                relatedOpportunities={OPPORTUNITIES.filter(
+                relatedOpportunities={opportunities.filter(
                   (opp) => opp.id !== selectedOpportunity.id
                 ).slice(0, 2)}
                 onSelectRelated={(opp) => setSelectedOpportunity(opp)}
@@ -413,21 +865,226 @@ export default function App() {
                 <div className="space-y-6">
                   {/* Greeting Block */}
                   <section className="mt-2">
-                    <h1 className="text-2xl font-bold font-headline text-white tracking-tight">
+                    <h1 className="text-2xl font-bold font-headline text-[#0b1c30] tracking-tight">
                       Hello, {user.name}
                     </h1>
-                    <p className="text-sm text-slate-400">
-                      Your global journey starts here. 4 new matches for you today.
+                    <p className="text-sm text-[#45464d]">
+                      Your global journey starts here. {topMatchedOpportunities.length} high-fit matches are ready for review.
                     </p>
                   </section>
 
+                  <section className="glass-panel overflow-hidden rounded-3xl grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
+                    <div className="p-5 sm:p-6 flex flex-col justify-between gap-6">
+                      <div className="space-y-3">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#131b2e] text-white rounded-full text-[10px] font-mono font-bold uppercase tracking-wider">
+                          <img
+                            src={AFRIPATH_LOGO_SRC}
+                            alt=""
+                            className="w-5 h-5 rounded-md object-cover bg-white"
+                            aria-hidden="true"
+                          />
+                          AfriPath
+                        </div>
+                        <div className="space-y-2">
+                          <h2 className="text-2xl sm:text-3xl font-black font-headline text-[#0b1c30] leading-tight">
+                            Opportunities, guidance, and global impact in one path.
+                          </h2>
+                          <p className="text-sm text-[#45464d] leading-relaxed max-w-xl">
+                            Curated scholarships, international hiring tracks, volunteer pathways, and visa evidence are organized into one vibrant operating system.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          onClick={() => setActiveTab("search")}
+                          className="px-4 py-2.5 bg-[#fd761a] text-white hover:bg-[#9d4300] rounded-lg text-xs font-bold flex items-center gap-2 transition-all"
+                        >
+                          <SearchIcon className="w-4 h-4" />
+                          Explore Matches
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("command")}
+                          className="px-4 py-2.5 bg-white border border-[#dce9ff] text-[#131b2e] hover:border-[#ffb690] rounded-lg text-xs font-bold flex items-center gap-2 transition-all"
+                        >
+                          <ClipboardList className="w-4 h-4" />
+                          Command Center
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative min-h-[220px] bg-[#131b2e]">
+                      <video
+                        src={AFRIPATH_3D_INTRO_SRC}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        poster={AFRIPATH_LOGO_SRC}
+                      />
+                      <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-[#0b1c30]/80 to-transparent">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {["Opportunities", "Guidance", "Global Impact"].map((item) => (
+                            <span
+                              key={item}
+                              className="px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-white text-[10px] font-mono font-bold uppercase tracking-wider"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="glass-panel p-5 rounded-3xl space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#ffdbca] text-[#5c2400] rounded-full text-[10px] font-mono font-bold uppercase tracking-wider">
+                          <Sparkles className="w-3 h-3" />
+                          Personalized Path
+                        </div>
+                        <h2 className="text-lg font-bold font-headline text-[#0b1c30]">
+                          {topMatchedOpportunities[0] ? matchInsights[topMatchedOpportunities[0].id].score : 0}% top match confidence
+                        </h2>
+                        <p className="text-xs text-[#45464d] max-w-2xl">
+                          Tuned for a {preferences.passportCountry} passport, {preferences.studyField} background, {preferences.destinationRegion} destination preference, and {preferences.opportunityGoal.toLowerCase()} goal.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowPreferenceEditor((value) => !value)}
+                        className="px-4 py-2.5 bg-[#131b2e] text-white hover:bg-black rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                      >
+                        <User className="w-4 h-4" />
+                        <span>{showPreferenceEditor ? "Close Profile" : "Tune Profile"}</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {[
+                        ["Passport", preferences.passportCountry],
+                        ["Field", preferences.studyField],
+                        ["Destination", preferences.destinationRegion],
+                        ["Goal", preferences.opportunityGoal],
+                        ["Timing", preferences.urgency],
+                      ].map(([label, value]) => (
+                        <div key={label} className="bg-[#eff4ff] border border-[#dce9ff] rounded-2xl p-3">
+                          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76777d]">{label}</p>
+                          <p className="text-sm font-bold text-[#0b1c30] mt-1">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="bg-white border border-[#dce9ff] rounded-2xl p-3">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76777d]">Data Sync</p>
+                        <p className="text-sm font-bold text-[#0b1c30] mt-1">
+                          {dataSyncStatus === "loading" ? "Loading" : dataSyncStatus === "offline" ? "Offline" : "Synced"}
+                        </p>
+                        <p className="text-[10px] text-[#45464d] mt-0.5">{lastSyncedAt || "Preparing records"}</p>
+                      </div>
+                      <div className="bg-white border border-[#dce9ff] rounded-2xl p-3">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76777d]">Opportunities</p>
+                        <p className="text-sm font-bold text-[#0b1c30] mt-1">{opportunities.length} records</p>
+                        <p className="text-[10px] text-[#45464d] mt-0.5">Backend-ready catalog</p>
+                      </div>
+                      <div className="bg-white border border-[#dce9ff] rounded-2xl p-3">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76777d]">Sponsors</p>
+                        <p className="text-sm font-bold text-[#0b1c30] mt-1">{approvedSponsorCompanies.length + approvedSponsorJobs.length} verified</p>
+                        <p className="text-[10px] text-[#45464d] mt-0.5">Companies and roles</p>
+                      </div>
+                      <div className="bg-white border border-[#dce9ff] rounded-2xl p-3">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76777d]">Applications</p>
+                        <p className="text-sm font-bold text-[#0b1c30] mt-1">{applicationRecords.length} records</p>
+                        <p className="text-[10px] text-[#45464d] mt-0.5">Saved locally via API layer</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        ["Source Verified", catalogSummary.sourceVerified, "Official links checked"],
+                        ["Fully Funded", catalogSummary.fullyFunded, "Scholarships and grants"],
+                        ["Global Jobs", catalogSummary.internationalJobs, "International hiring only"],
+                        ["Volunteer", catalogSummary.volunteerPlacements, "Service placements"],
+                      ].map(([label, value, helper]) => (
+                        <div key={label} className="bg-[#f4fff8] border border-[#cdebd8] rounded-2xl p-3">
+                          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#15803d]">{label}</p>
+                          <p className="text-sm font-bold text-[#0b1c30] mt-1">{value} records</p>
+                          <p className="text-[10px] text-[#45464d] mt-0.5">{helper}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <AnimatePresence>
+                      {showPreferenceEditor && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2"
+                        >
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#45464d]">Passport</span>
+                            <select
+                              value={preferences.passportCountry}
+                              onChange={(e) => setPreferences((prev) => ({ ...prev, passportCountry: e.target.value }))}
+                              className="w-full rounded-lg border border-[#c6c6cd] bg-white px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:border-[#fd761a]"
+                            >
+                              {PASSPORT_COUNTRIES.map((country) => <option key={country}>{country}</option>)}
+                            </select>
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#45464d]">Field</span>
+                            <select
+                              value={preferences.studyField}
+                              onChange={(e) => setPreferences((prev) => ({ ...prev, studyField: e.target.value }))}
+                              className="w-full rounded-lg border border-[#c6c6cd] bg-white px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:border-[#fd761a]"
+                            >
+                              {STUDY_FIELDS.map((field) => <option key={field}>{field}</option>)}
+                            </select>
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#45464d]">Destination</span>
+                            <select
+                              value={preferences.destinationRegion}
+                              onChange={(e) => setPreferences((prev) => ({ ...prev, destinationRegion: e.target.value }))}
+                              className="w-full rounded-lg border border-[#c6c6cd] bg-white px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:border-[#fd761a]"
+                            >
+                              {DESTINATION_REGIONS.map((region) => <option key={region}>{region}</option>)}
+                            </select>
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#45464d]">Goal</span>
+                            <select
+                              value={preferences.opportunityGoal}
+                              onChange={(e) => setPreferences((prev) => ({ ...prev, opportunityGoal: e.target.value as UserPreferences["opportunityGoal"] }))}
+                              className="w-full rounded-lg border border-[#c6c6cd] bg-white px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:border-[#fd761a]"
+                            >
+                              {OPPORTUNITY_GOALS.map((goal) => <option key={goal}>{goal}</option>)}
+                            </select>
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#45464d]">Timing</span>
+                            <select
+                              value={preferences.urgency}
+                              onChange={(e) => setPreferences((prev) => ({ ...prev, urgency: e.target.value as UserPreferences["urgency"] }))}
+                              className="w-full rounded-lg border border-[#c6c6cd] bg-white px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:border-[#fd761a]"
+                            >
+                              {URGENCY_OPTIONS.map((urgency) => <option key={urgency}>{urgency}</option>)}
+                            </select>
+                          </label>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </section>
+
                   {/* High fidelity search banner triggers search redirect */}
-                  <section className="glass-panel p-4 rounded-2xl border border-white/10 flex items-center gap-3">
-                    <Search className="w-5 h-5 text-slate-400" />
+                  <section className="glass-panel home-search-panel p-4 rounded-2xl flex items-center gap-3">
+                    <Search className="w-5 h-5 text-[#565e74]" />
                     <input
                       type="text"
                       placeholder="Search scholarships, visas, or countries..."
-                      className="flex-grow bg-transparent text-sm text-slate-100 focus:outline-none placeholder:text-slate-500"
+                      className="flex-grow bg-transparent text-sm text-[#0b1c30] focus:outline-none placeholder:text-[#76777d]"
                       value={searchText}
                       onChange={(e) => {
                         setSearchText(e.target.value);
@@ -439,71 +1096,101 @@ export default function App() {
                     />
                     <button 
                       onClick={() => setActiveTab("search")}
-                      className="p-2.5 bg-cyan-500 text-black hover:bg-cyan-400 rounded-xl active:scale-95 transition-transform glow-cyan cursor-pointer"
+                      className="p-2.5 bg-[#fd761a] text-white hover:bg-[#9d4300] rounded-lg active:scale-95 transition-transform glow-cyan cursor-pointer"
                     >
                       <Sliders className="w-4 h-4" />
                     </button>
                   </section>
 
                   {/* Bento Categories grid */}
-                  <section className="grid grid-cols-2 gap-4">
+                  <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div
                       onClick={() => handleCategoryClick("School")}
-                      className="glass-panel bg-cyan-950/25 p-4 rounded-3xl flex flex-col justify-between h-32 active:scale-98 transition-all cursor-pointer group border border-white/5 hover:border-cyan-400/40 hover:shadow-[0_0_15px_rgba(34,211,238,0.15)]"
+                      className="category-card category-card-cyan p-4 rounded-3xl flex flex-col justify-between h-32 active:scale-98 transition-all cursor-pointer group hover:shadow-[0_20px_36px_rgba(8,145,178,0.26)]"
                     >
-                      <div className="w-10 h-10 rounded-2xl bg-cyan-950/80 border border-cyan-400/30 flex items-center justify-center text-cyan-400 shadow-sm">
+                      <div className="category-icon w-10 h-10 rounded-2xl flex items-center justify-center text-white">
                         <GraduationCap className="w-5 h-5" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs font-mono font-bold text-slate-200 group-hover:text-cyan-400 transition-colors uppercase tracking-wider">
+                        <span className="text-xs font-mono font-bold text-[#0b1c30] transition-colors uppercase tracking-wider">
                           Schools
                         </span>
-                        <span className="text-[10px] text-slate-500 font-light">With Scholarships</span>
+                        <span className="text-[10px] text-[#45464d] font-light">With Scholarships</span>
                       </div>
                     </div>
 
                     <div
                       onClick={() => handleCategoryClick("Workshop")}
-                      className="glass-panel bg-amber-950/25 p-4 rounded-3xl flex flex-col justify-between h-32 active:scale-98 transition-all cursor-pointer group border border-white/5 hover:border-amber-400/40 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+                      className="category-card category-card-amber p-4 rounded-3xl flex flex-col justify-between h-32 active:scale-98 transition-all cursor-pointer group hover:shadow-[0_20px_36px_rgba(194,65,12,0.26)]"
                     >
-                      <div className="w-10 h-10 rounded-2xl bg-amber-950/80 border border-amber-400/30 flex items-center justify-center text-amber-400 shadow-sm">
+                      <div className="category-icon w-10 h-10 rounded-2xl flex items-center justify-center text-white">
                         <SlidersHorizontal className="w-5 h-5" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs font-mono font-bold text-slate-200 group-hover:text-amber-400 transition-colors uppercase tracking-wider">
+                        <span className="text-xs font-mono font-bold text-[#0b1c30] transition-colors uppercase tracking-wider">
                           Workshops
                         </span>
-                        <span className="text-[10px] text-slate-500 font-light">Direct application</span>
+                        <span className="text-[10px] text-[#45464d] font-light">Direct application</span>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => handleCategoryClick("Job")}
+                      className="category-card category-card-job p-4 rounded-3xl flex flex-col justify-between h-32 active:scale-98 transition-all cursor-pointer group hover:shadow-[0_20px_36px_rgba(19,27,46,0.18)]"
+                    >
+                      <div className="category-icon w-10 h-10 rounded-2xl flex items-center justify-center text-white">
+                        <Briefcase className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-mono font-bold text-[#0b1c30] transition-colors uppercase tracking-wider">
+                          Jobs
+                        </span>
+                        <span className="text-[10px] text-[#45464d] font-light">International hiring only</span>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => handleCategoryClick("Volunteer")}
+                      className="category-card category-card-volunteer p-4 rounded-3xl flex flex-col justify-between h-32 active:scale-98 transition-all cursor-pointer group hover:shadow-[0_20px_36px_rgba(249,189,34,0.22)]"
+                    >
+                      <div className="category-icon w-10 h-10 rounded-2xl flex items-center justify-center text-white">
+                        <Heart className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-mono font-bold text-[#0b1c30] transition-colors uppercase tracking-wider">
+                          Volunteer
+                        </span>
+                        <span className="text-[10px] text-[#45464d] font-light">Global service tracks</span>
                       </div>
                     </div>
 
                     <div
                       onClick={() => handleCategoryClick("Conference")}
-                      className="glass-panel bg-rose-950/25 p-4 rounded-3xl flex flex-col justify-between h-32 active:scale-98 transition-all cursor-pointer group border border-white/5 hover:border-rose-450 hover:shadow-[0_0_15px_rgba(244,63,94,0.15)]"
+                      className="category-card category-card-rose p-4 rounded-3xl flex flex-col justify-between h-32 active:scale-98 transition-all cursor-pointer group hover:shadow-[0_20px_36px_rgba(126,34,206,0.24)]"
                     >
-                      <div className="w-10 h-10 rounded-2xl bg-rose-950/80 border border-rose-500/30 flex items-center justify-center text-rose-450 shadow-sm">
+                      <div className="category-icon w-10 h-10 rounded-2xl flex items-center justify-center text-white">
                         <Users className="w-5 h-5" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs font-mono font-bold text-slate-200 group-hover:text-[#f43f5e] transition-colors uppercase tracking-wider">
+                        <span className="text-xs font-mono font-bold text-[#0b1c30] transition-colors uppercase tracking-wider">
                           Conferences
                         </span>
-                        <span className="text-[10px] text-slate-500 font-light">Global assemblies</span>
+                        <span className="text-[10px] text-[#45464d] font-light">Global assemblies</span>
                       </div>
                     </div>
 
                     <div
                       onClick={() => handleCategoryClick("Seminar")}
-                      className="glass-panel bg-emerald-950/25 p-4 rounded-3xl flex flex-col justify-between h-32 active:scale-98 transition-all cursor-pointer group border border-white/5 hover:border-emerald-400/40 hover:shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+                      className="category-card category-card-emerald p-4 rounded-3xl flex flex-col justify-between h-32 active:scale-98 transition-all cursor-pointer group hover:shadow-[0_20px_36px_rgba(21,128,61,0.26)]"
                     >
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-950/80 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shadow-sm">
+                      <div className="category-icon w-10 h-10 rounded-2xl flex items-center justify-center text-white">
                         <Presentation className="w-5 h-5" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs font-mono font-bold text-slate-200 group-hover:text-emerald-400 transition-colors uppercase tracking-wider">
+                        <span className="text-xs font-mono font-bold text-[#0b1c30] transition-colors uppercase tracking-wider">
                           Seminars
                         </span>
-                        <span className="text-[10px] text-slate-500 font-light">Interactive panels</span>
+                        <span className="text-[10px] text-[#45464d] font-light">Interactive panels</span>
                       </div>
                     </div>
                   </section>
@@ -514,24 +1201,24 @@ export default function App() {
                       setActiveTab("visahub");
                       triggerSuccessAlert("Opening Visa & Sponsorship Programs Platform! 🌍");
                     }}
-                    className="glass-panel relative overflow-hidden bg-gradient-to-r from-orange-400/5 via-cyan-950/40 to-cyan-500/10 hover:border-cyan-450 p-5 rounded-3xl border border-white/5 cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.05)] hover:shadow-[0_0_20px_rgba(6,182,212,0.15)] transition-all group"
+                    className="glass-panel mobility-banner relative overflow-hidden hover:border-cyan-100 p-5 rounded-3xl cursor-pointer hover:shadow-[0_20px_40px_rgba(6,182,212,0.22)] transition-all group"
                   >
                     <div className="flex justify-between items-start gap-4">
                       <div className="space-y-2">
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-cyan-950/80 text-cyan-400 border border-cyan-800/30 font-bold font-mono uppercase rounded-full text-[9px] tracking-wider">
-                          <ShieldCheck className="w-3 h-3 text-cyan-450" />
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[#131b2e] text-white border border-[#131b2e] font-bold font-mono uppercase rounded-full text-[9px] tracking-wider">
+                          <ShieldCheck className="w-3 h-3 text-[#ffb690]" />
                           <span>Mobility Database</span>
                         </div>
-                        <h3 className="text-md font-bold text-slate-100 group-hover:text-cyan-450 transition-colors">
+                        <h3 className="text-md font-bold text-[#0b1c30] group-hover:text-[#9d4300] transition-colors">
                           Visa-Free Programs & Sponsoring Employers Directory
                         </h3>
-                        <p className="text-xs text-slate-400 leading-relaxed max-w-xl font-light">
+                        <p className="text-xs text-[#45464d] leading-relaxed max-w-xl font-light">
                           Browse authentic government pathways, verify regional bilateral visa exemptions, and connect with licensed sponsor companies offering vetted employment.
                         </p>
                       </div>
                       
-                      <div className="w-12 h-12 rounded-2xl bg-cyan-950/80 border border-cyan-400/30 flex items-center justify-center text-cyan-400 shadow-sm flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
-                        <ShieldCheck className="w-6 h-6 text-cyan-450 fill-cyan-400/10 animate-pulse" />
+                      <div className="w-12 h-12 rounded-2xl bg-[#fd761a] border border-[#ffb690] flex items-center justify-center text-white shadow-sm flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
+                        <ShieldCheck className="w-6 h-6 text-white fill-white/10 animate-pulse" />
                       </div>
                     </div>
                   </section>
@@ -539,7 +1226,7 @@ export default function App() {
                   {/* Horizontal Opportunity slider stream */}
                   <section className="space-y-3.5">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-lg font-bold text-slate-100">For You</h2>
+                      <h2 className="text-lg font-bold text-[#0b1c30]">For You</h2>
                       <button
                         onClick={() => setActiveTab("search")}
                         className="text-xs font-bold text-[#fd761a] hover:text-orange-400 font-mono tracking-wider"
@@ -550,12 +1237,13 @@ export default function App() {
 
                     {/* horizontal container */}
                     <div className="flex overflow-x-auto gap-4 hide-scrollbar pb-3 -mx-6 px-6">
-                      {OPPORTUNITIES.slice(0, 3).map((opp) => (
+                      {topMatchedOpportunities.map((opp) => (
                         <OpportunityCard
                           key={opp.id}
                           opportunity={opp}
                           layout="horizontal"
                           isSaved={savedIds.includes(opp.id)}
+                          matchInsight={matchInsights[opp.id]}
                           onToggleSave={handleToggleSave}
                           onClick={() => {
                             setLastTab("home");
@@ -568,7 +1256,7 @@ export default function App() {
 
                   {/* Active track widget stepper */}
                   <section className="space-y-3">
-                    <h2 className="text-lg font-bold text-slate-100">My Benchmarks</h2>
+                    <h2 className="text-lg font-bold text-[#0b1c30]">My Benchmarks</h2>
                     <div className="space-y-4">
                       {activeTracks.map((track) => (
                         <ActiveTrackWidget
@@ -616,7 +1304,7 @@ export default function App() {
 
                     {/* Program Type Filter row */}
                     <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1 pt-1 border-b border-white/5">
-                      {["All Types", "School", "Workshop", "Conference", "Seminar"].map((typeOpt) => {
+                      {["All Types", "School", "Job", "Volunteer", "Workshop", "Conference", "Seminar"].map((typeOpt) => {
                         const isSelected = (typeOpt === "All Types" && selectedType === "All") || (selectedType === typeOpt);
                         return (
                           <button
@@ -628,7 +1316,7 @@ export default function App() {
                                 : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
                             }`}
                           >
-                            <span>{typeOpt === "All Types" ? "🌎 All Types" : typeOpt === "School" ? "🎓 Schools" : typeOpt === "Workshop" ? "🛠️ Workshops" : typeOpt === "Conference" ? "📣 Conferences" : "🎤 Seminars"}</span>
+                            <span>{typeOpt === "All Types" ? "All Types" : typeOpt === "School" ? "Schools" : typeOpt === "Job" ? "Curated Jobs" : typeOpt === "Volunteer" ? "Volunteer" : typeOpt === "Workshop" ? "Workshops" : typeOpt === "Conference" ? "Conferences" : "Seminars"}</span>
                           </button>
                         );
                       })}
@@ -683,7 +1371,7 @@ export default function App() {
                       onClick={() => setSortBy((prev) => (prev === "newest" ? "title" : "newest"))}
                       className="text-orange-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
                     >
-                      Sort: {sortBy === "newest" ? "Newest Priority" : "Alpha Title"}
+                      Sort: {sortBy === "newest" ? "Best Match" : "Alpha Title"}
                     </button>
                   </section>
 
@@ -708,12 +1396,13 @@ export default function App() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {sortedOpportunities.map((opp) => (
                           <OpportunityCard
-                            key={opp.id}
-                            opportunity={opp}
-                            layout="vertical"
-                            isSaved={savedIds.includes(opp.id)}
-                            onToggleSave={handleToggleSave}
-                            onClick={() => {
+                          key={opp.id}
+                          opportunity={opp}
+                          layout="vertical"
+                          isSaved={savedIds.includes(opp.id)}
+                          matchInsight={matchInsights[opp.id]}
+                          onToggleSave={handleToggleSave}
+                          onClick={() => {
                               setLastTab("search");
                               setSelectedOpportunity(opp);
                             }}
@@ -870,7 +1559,7 @@ export default function App() {
                     
                     {/* SPONSORED JOBS */}
                     {visaHubCategory === "jobs" && (() => {
-                      const filtered = APPROVED_SPONSOR_JOBS.filter(j => {
+                      const filtered = approvedSponsorJobs.filter(j => {
                         const matchesCountry = visaSelectedCountry === "All" || j.country.toLowerCase() === visaSelectedCountry.toLowerCase();
                         const matchesSearch = j.title.toLowerCase().includes(visaSearchText.toLowerCase()) ||
                                               j.companyName.toLowerCase().includes(visaSearchText.toLowerCase()) ||
@@ -967,6 +1656,12 @@ export default function App() {
                                         };
                                         setActiveTracks((prev) => [newTrack, ...prev]);
                                       }
+                                      recordApplicationActivity({
+                                        sourceId: j.id,
+                                        title: `${j.title} (${j.companyName})`,
+                                        category: "Sponsored Job",
+                                        status: "Tracked",
+                                      });
                                       triggerSuccessAlert(`Pipeline tracker generated and added to 'My Benchmarks' on your home screen!`);
                                     }}
                                     className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-455 text-black text-[10px] font-mono rounded-lg font-bold tracking-wide"
@@ -983,7 +1678,7 @@ export default function App() {
 
                     {/* COMPANIES */}
                     {visaHubCategory === "companies" && (() => {
-                      const filteredEntries = DIRECTORY_ENTRIES.filter(e => {
+                      const filteredEntries = directoryEntries.filter(e => {
                         const matchesCountry = visaSelectedCountry === "All" || e.location.toLowerCase().includes(visaSelectedCountry.toLowerCase());
                         const matchesSearch = e.title.toLowerCase().includes(visaSearchText.toLowerCase()) ||
                                               e.companyName.toLowerCase().includes(visaSearchText.toLowerCase());
@@ -1017,6 +1712,12 @@ export default function App() {
                                 };
                                 setActiveTracks(prev => [newTrack, ...prev]);
                               }
+                              recordApplicationActivity({
+                                sourceId: trackTitle,
+                                title: trackTitle,
+                                category: "Corporate Role",
+                                status: "Applied",
+                              });
                               triggerSuccessAlert(`C.V. successfully dispatched! Sponsorship pipeline initiated.`);
                             }}
                           />
@@ -1026,7 +1727,7 @@ export default function App() {
 
                     {/* SPONSORED PATHWAYS WITH POINTS SCORE CALCULATOR INTEGRATION */}
                     {visaHubCategory === "sponsored" && (() => {
-                      const filtered = VISA_SPONSORED_PROGRAMS.filter(p => {
+                      const filtered = visaSponsoredPrograms.filter(p => {
                         const matchesCountry = visaSelectedCountry === "All" || p.country.toLowerCase() === visaSelectedCountry.toLowerCase();
                         const matchesSearch = p.programName.toLowerCase().includes(visaSearchText.toLowerCase()) ||
                                               p.description.toLowerCase().includes(visaSearchText.toLowerCase()) ||
@@ -1260,7 +1961,13 @@ export default function App() {
                                             };
                                             setActiveTracks((prev) => [newTrack, ...prev]);
                                           }
-                                          triggerSuccessAlert(`Generated custom 4-phase program roadmap under homepage Benchmarks Tracking! 🚀`);
+                                          recordApplicationActivity({
+                                            sourceId: p.id,
+                                            title: p.programName,
+                                            category: "Visa Program",
+                                            status: "Tracked",
+                                          });
+                                          triggerSuccessAlert("Generated custom 4-phase program roadmap under homepage Benchmarks Tracking.");
                                         }}
                                         className="px-3.5 py-2 bg-white/5 hover:bg-white/15 text-slate-100 rounded-xl text-xs font-mono font-bold text-center border border-white/10"
                                       >
@@ -1278,7 +1985,7 @@ export default function App() {
 
                     {/* VISA FREE PROTOCOLS WITH PASSPORT EXEMPTION RADAR */}
                     {visaHubCategory === "free" && (() => {
-                      const filtered = VISA_FREE_PROGRAMS.filter(p => {
+                      const filtered = visaFreePrograms.filter(p => {
                         const matchesCountry = visaSelectedCountry === "All" || 
                                               p.countryOrRegion.toLowerCase().includes(visaSelectedCountry.toLowerCase());
                         const matchesSearch = p.programName.toLowerCase().includes(visaSearchText.toLowerCase()) ||
@@ -1513,7 +2220,688 @@ export default function App() {
 
 
 
-              {/* TAB 4: SAVED LIST SCREEN */}
+              {/* TAB 4: APPLICATION COMMAND CENTER */}
+              {activeTab === "command" && (
+                <div className="space-y-6">
+                  <section className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#ffdbca] text-[#5c2400] rounded-full text-[10px] font-mono font-bold uppercase tracking-wider mb-3">
+                        <ClipboardList className="w-3.5 h-3.5" />
+                        Command Center
+                      </div>
+                      <h2 className="text-2xl font-bold font-headline text-[#0b1c30]">Application Command Center</h2>
+                      <p className="text-[#45464d] text-sm mt-1 max-w-2xl">
+                        Track every scholarship, curated international job, volunteer placement, sponsor role, and visa pathway from one operating dashboard.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab("search")}
+                      className="px-4 py-2.5 bg-[#131b2e] text-white hover:bg-black rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                    >
+                      <SearchIcon className="w-4 h-4" />
+                      <span>Add Pathway</span>
+                    </button>
+                  </section>
+
+                  <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                    {[
+                      ["Total", applicationSummary.total],
+                      ["Tracked", applicationSummary.tracked],
+                      ["Applied", applicationSummary.applied],
+                      ["Reviewing", applicationSummary.reviewing],
+                      ["Tasks Done", `${taskSummary.completed}/${taskSummary.total}`],
+                      ["Docs Ready", `${documentSummary.ready}/${documentSummary.total}`],
+                    ].map(([label, value]) => (
+                      <div key={label} className="glass-panel rounded-2xl p-4">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76777d]">{label}</p>
+                        <p className="text-2xl font-black text-[#0b1c30] mt-1">{value}</p>
+                      </div>
+                    ))}
+                  </section>
+
+                  <section className="glass-panel rounded-3xl p-5 space-y-5">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      <div>
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#eff4ff] text-[#131b2e] rounded-full text-[10px] font-mono font-bold uppercase tracking-wider mb-3">
+                          <FolderOpen className="w-3.5 h-3.5" />
+                          Applicant Readiness
+                        </div>
+                        <h3 className="text-lg font-bold text-[#0b1c30]">Reusable Profile Vault</h3>
+                        <p className="text-sm text-[#45464d] mt-1 max-w-2xl">
+                          Prepare the core documents once, then reuse them across scholarships, curated jobs, volunteer placements, and visa pathways.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 min-w-full sm:min-w-[320px] lg:min-w-[360px]">
+                        <div className="rounded-2xl bg-[#f4fff8] border border-[#cdebd8] p-4">
+                          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#15803d]">Readiness</p>
+                          <p className="text-2xl font-black text-[#0b1c30] mt-1">{applicantReadiness.readinessScore}%</p>
+                          <p className="text-[10px] text-[#45464d] mt-0.5">
+                            {applicantReadiness.ready}/{applicantReadiness.total} credentials ready
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-[#fff9f5] border border-[#ffdbca] p-4">
+                          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#9d4300]">Core Pack</p>
+                          <p className="text-2xl font-black text-[#0b1c30] mt-1">{applicantReadiness.coreScore}%</p>
+                          <p className="text-[10px] text-[#45464d] mt-0.5">
+                            {applicantReadiness.coreReady}/{applicantReadiness.coreTotal} core ready
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {applicantReadiness.missingCore.length > 0 && (
+                      <div className="rounded-2xl border border-[#ffdbca] bg-[#fff9f5] px-4 py-3">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#9d4300] mb-1">
+                          Missing Core Credentials
+                        </p>
+                        <p className="text-sm text-[#45464d]">
+                          {applicantReadiness.missingCore.map((credential) => credential.name).join(", ")}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                      {applicantCredentials.map((credential) => (
+                        <label
+                          key={credential.id}
+                          className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-all ${
+                            credential.ready
+                              ? "bg-[#f4fff8] border-[#cdebd8]"
+                              : credential.importance === "Core"
+                                ? "bg-white border-[#ffdbca] hover:border-[#ffb690]"
+                                : "bg-white border-[#dce9ff] hover:border-[#ffb690]"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={credential.ready}
+                            onChange={() => handleToggleApplicantCredential(credential)}
+                            className="mt-1 accent-[#15803d]"
+                          />
+                          <span className="space-y-1 min-w-0">
+                            <span className={`block text-sm font-bold ${credential.ready ? "text-[#15803d]" : "text-[#0b1c30]"}`}>
+                              {credential.name}
+                            </span>
+                            <span className="block text-xs text-[#45464d] leading-relaxed">
+                              {credential.description}
+                            </span>
+                            <span className="flex flex-wrap gap-2 pt-1">
+                              <span className="text-[10px] font-mono font-bold text-[#0b1c30] bg-[#eff4ff] rounded-full px-2 py-0.5">
+                                {credential.category}
+                              </span>
+                              <span className={`text-[10px] font-mono font-bold rounded-full px-2 py-0.5 ${
+                                credential.importance === "Core"
+                                  ? "text-[#5c2400] bg-[#ffdbca]"
+                                  : credential.importance === "Recommended"
+                                    ? "text-[#15803d] bg-[#f4fff8]"
+                                    : "text-[#45464d] bg-[#f3f4f6]"
+                              }`}>
+                                {credential.importance}
+                              </span>
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="glass-panel rounded-3xl p-5 space-y-5">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                      <div>
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#ffdbca] text-[#5c2400] rounded-full text-[10px] font-mono font-bold uppercase tracking-wider mb-3">
+                          <Award className="w-3.5 h-3.5" />
+                          Decision Intelligence
+                        </div>
+                        <h3 className="text-lg font-bold text-[#0b1c30]">Pathway Priority Board</h3>
+                        <p className="text-sm text-[#45464d] mt-1 max-w-2xl">
+                          Ranked next actions based on match confidence, source quality, international eligibility, deadline pressure, and applicant readiness.
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-[#eff4ff] border border-[#dce9ff] p-4 min-w-full sm:min-w-[260px] lg:min-w-[300px]">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76777d]">Core Readiness Gate</p>
+                        <p className="text-2xl font-black text-[#0b1c30] mt-1">{applicantReadiness.coreScore}%</p>
+                        <p className="text-[10px] text-[#45464d] mt-0.5">
+                          {applicantReadiness.coreScore >= 75 ? "Ready to prioritize submissions" : "Finish core credentials before aggressive applications"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-5 gap-3">
+                      {priorityOpportunities.map(({ opportunity, score, daysUntilDeadline, isTracked, blockers }, index) => (
+                        <div key={opportunity.id} className="rounded-2xl border border-[#dce9ff] bg-white p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-[#131b2e] text-white flex items-center justify-center font-black text-sm">
+                              {index + 1}
+                            </div>
+                            <span className="text-[10px] font-mono font-bold rounded-full bg-[#f4fff8] text-[#15803d] px-2 py-1">
+                              {score}% Priority
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-[#0b1c30] line-clamp-2">{opportunity.title}</p>
+                            <p className="text-[10px] text-[#45464d] font-mono mt-1">
+                              {opportunity.type} / {opportunity.region}
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2 text-[10px] font-mono">
+                              <span className="text-[#76777d]">Match</span>
+                              <span className="font-bold text-[#0b1c30]">{matchInsights[opportunity.id]?.score ?? 0}%</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 text-[10px] font-mono">
+                              <span className="text-[#76777d]">Deadline</span>
+                              <span className={`font-bold ${daysUntilDeadline <= 45 ? "text-[#9d4300]" : "text-[#0b1c30]"}`}>
+                                {daysUntilDeadline === 999
+                                  ? "Check source"
+                                  : daysUntilDeadline < 0
+                                    ? "Past date"
+                                    : `${daysUntilDeadline} days`}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {opportunity.sourceUrl && (
+                                <span className="text-[10px] font-mono font-bold rounded-full bg-[#f4fff8] text-[#15803d] px-2 py-0.5">
+                                  Source
+                                </span>
+                              )}
+                              {opportunity.internationalApplicantPolicy && (
+                                <span className="text-[10px] font-mono font-bold rounded-full bg-[#ffdbca] text-[#5c2400] px-2 py-0.5">
+                                  Global
+                                </span>
+                              )}
+                              {isTracked && (
+                                <span className="text-[10px] font-mono font-bold rounded-full bg-[#eff4ff] text-[#131b2e] px-2 py-0.5">
+                                  Tracked
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {blockers.length > 0 && (
+                            <p className="text-[11px] text-[#9d4300] leading-relaxed">
+                              Missing: {blockers.join(", ")}
+                            </p>
+                          )}
+                          <div className="flex flex-col gap-2 pt-2 border-t border-[#dce9ff]">
+                            <button
+                              onClick={() => {
+                                setLastTab("command");
+                                setSelectedOpportunity(opportunity);
+                              }}
+                              className="px-3 py-2 bg-[#131b2e] text-white hover:bg-black rounded-lg text-xs font-bold"
+                            >
+                              Review
+                            </button>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => handleToggleSave(opportunity.id)}
+                                className="px-3 py-2 bg-white border border-[#dce9ff] text-[#131b2e] hover:border-[#ffb690] rounded-lg text-[11px] font-bold"
+                              >
+                                {savedIds.includes(opportunity.id) ? "Saved" : "Save"}
+                              </button>
+                              <button
+                                onClick={() =>
+                                  recordApplicationActivity({
+                                    sourceId: opportunity.id,
+                                    title: opportunity.title,
+                                    category: "Opportunity",
+                                    status: "Tracked",
+                                  })
+                                }
+                                disabled={isTracked}
+                                className={`px-3 py-2 rounded-lg text-[11px] font-bold ${
+                                  isTracked
+                                    ? "bg-[#eff4ff] text-[#76777d] cursor-not-allowed"
+                                    : "bg-[#fd761a] text-white hover:bg-[#9d4300]"
+                                }`}
+                              >
+                                {isTracked ? "Tracked" : "Track"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="glass-panel rounded-3xl p-5 space-y-5">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                      <div>
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#f4fff8] text-[#15803d] rounded-full text-[10px] font-mono font-bold uppercase tracking-wider mb-3">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          Curation Console
+                        </div>
+                        <h3 className="text-lg font-bold text-[#0b1c30]">Research Verification Desk</h3>
+                        <p className="text-sm text-[#45464d] mt-1 max-w-2xl">
+                          Capture new opportunities, validate official sources, and keep the catalog ready for backend admin publishing.
+                        </p>
+                      </div>
+
+                      <div className="min-w-[220px] rounded-2xl bg-[#eff4ff] border border-[#dce9ff] p-4">
+                        <div className="flex items-end justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76777d]">Source Coverage</p>
+                            <p className="text-2xl font-black text-[#0b1c30]">{curationSummary.sourceCoverage}%</p>
+                          </div>
+                          <span className="text-[10px] font-mono text-[#45464d]">
+                            {catalogSummary.sourceVerified}/{opportunities.length}
+                          </span>
+                        </div>
+                        <div className="h-2 bg-white rounded-full overflow-hidden mt-3">
+                          <div
+                            className="h-full bg-[#15803d] rounded-full"
+                            style={{ width: `${curationSummary.sourceCoverage}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        ["Leads", curationSummary.leadCounts.total, "Research queue"],
+                        ["Researching", curationSummary.leadCounts.researching, "In validation"],
+                        ["Verified Leads", curationSummary.leadCounts.verified, "Ready to publish"],
+                        ["Published", curationSummary.publishedFromDesk, "Live from desk"],
+                      ].map(([label, value, helper]) => (
+                        <div key={label} className="rounded-2xl border border-[#dce9ff] bg-white p-3">
+                          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76777d]">{label}</p>
+                          <p className="text-xl font-black text-[#0b1c30] mt-1">{value}</p>
+                          <p className="text-[10px] text-[#45464d] mt-0.5">{helper}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4">
+                      <form
+                        onSubmit={handleCreateCurationLead}
+                        className="rounded-2xl border border-[#dce9ff] bg-white p-4 space-y-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <h4 className="text-sm font-bold text-[#0b1c30]">Add Research Lead</h4>
+                          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#15803d]">
+                            Admin Intake
+                          </span>
+                        </div>
+                        <input
+                          value={curationLeadForm.title}
+                          onChange={(event) => setCurationLeadForm((prev) => ({ ...prev, title: event.target.value }))}
+                          placeholder="Opportunity title"
+                          className="w-full rounded-lg border border-[#c6c6cd] bg-white px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:border-[#fd761a]"
+                        />
+                        <input
+                          value={curationLeadForm.sourceUrl}
+                          onChange={(event) => setCurationLeadForm((prev) => ({ ...prev, sourceUrl: event.target.value }))}
+                          placeholder="Official source URL"
+                          className="w-full rounded-lg border border-[#c6c6cd] bg-white px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:border-[#fd761a]"
+                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <select
+                            value={curationLeadForm.type}
+                            onChange={(event) => setCurationLeadForm((prev) => ({ ...prev, type: event.target.value as Opportunity["type"] }))}
+                            className="rounded-lg border border-[#c6c6cd] bg-white px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:border-[#fd761a]"
+                          >
+                            {CURATION_TYPE_OPTIONS.map((type) => (
+                              <option key={type}>{type}</option>
+                            ))}
+                          </select>
+                          <select
+                            value={curationLeadForm.region}
+                            onChange={(event) => setCurationLeadForm((prev) => ({ ...prev, region: event.target.value }))}
+                            className="rounded-lg border border-[#c6c6cd] bg-white px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:border-[#fd761a]"
+                          >
+                            {DESTINATION_REGIONS.filter((region) => region !== "All").map((region) => (
+                              <option key={region}>{region}</option>
+                            ))}
+                          </select>
+                          <select
+                            value={curationLeadForm.priority}
+                            onChange={(event) => setCurationLeadForm((prev) => ({ ...prev, priority: event.target.value as OpportunityCurationLead["priority"] }))}
+                            className="rounded-lg border border-[#c6c6cd] bg-white px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:border-[#fd761a]"
+                          >
+                            {["High", "Medium", "Low"].map((priority) => (
+                              <option key={priority}>{priority}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <textarea
+                          value={curationLeadForm.notes}
+                          onChange={(event) => setCurationLeadForm((prev) => ({ ...prev, notes: event.target.value }))}
+                          placeholder="Curation notes: eligibility, funding evidence, visa signal, source risk..."
+                          rows={3}
+                          className="w-full rounded-lg border border-[#c6c6cd] bg-white px-3 py-2 text-sm text-[#0b1c30] focus:outline-none focus:border-[#fd761a]"
+                        />
+                        <button className="w-full px-4 py-2.5 bg-[#131b2e] text-white hover:bg-black rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all">
+                          <Plus className="w-4 h-4" />
+                          <span>Save Lead</span>
+                        </button>
+                      </form>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="rounded-2xl border border-[#dce9ff] bg-white p-4 space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <h4 className="text-sm font-bold text-[#0b1c30]">Research Queue</h4>
+                            <span className="text-[10px] font-mono text-[#76777d]">
+                              {curationLeads.length} leads
+                            </span>
+                          </div>
+                          {curationLeads.length === 0 ? (
+                            <p className="text-xs text-[#45464d] leading-relaxed">
+                              No draft leads yet. Add opportunities here before turning them into published catalog records.
+                            </p>
+                          ) : (
+                            <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                              {curationLeads.map((lead) => (
+                                <div key={lead.id} className="rounded-xl border border-[#dce9ff] bg-[#f8f9ff] p-3 space-y-2">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <p className="text-sm font-bold text-[#0b1c30]">{lead.title}</p>
+                                      <p className="text-[10px] text-[#45464d] font-mono">
+                                        {lead.type} / {lead.region}
+                                      </p>
+                                    </div>
+                                    <span className="text-[10px] font-mono font-bold text-[#5c2400] bg-[#ffdbca] rounded-full px-2 py-0.5">
+                                      {lead.status}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-[#45464d] leading-relaxed">{lead.notes}</p>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <a
+                                      href={lead.sourceUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 text-[10px] font-bold text-[#15803d] hover:underline"
+                                    >
+                                      <Globe className="w-3 h-3" />
+                                      Source
+                                    </a>
+                                    <span className="text-[10px] font-mono text-[#76777d]">
+                                      {lead.priority} priority
+                                    </span>
+                                    <button
+                                      onClick={() => {
+                                        if (lead.status === "Verified") {
+                                          handlePublishCurationLead(lead);
+                                          return;
+                                        }
+
+                                        handleAdvanceCurationLead(lead);
+                                      }}
+                                      disabled={lead.status === "Published"}
+                                      className={`ml-auto px-3 py-1.5 rounded-lg text-[10px] font-bold ${
+                                        lead.status === "Published"
+                                          ? "bg-[#eff4ff] text-[#76777d] cursor-not-allowed"
+                                          : lead.status === "Verified"
+                                            ? "bg-[#15803d] text-white hover:bg-[#0f5d2c]"
+                                            : "bg-[#fd761a] text-white hover:bg-[#9d4300]"
+                                      }`}
+                                    >
+                                      {lead.status === "Published"
+                                        ? "Published"
+                                        : lead.status === "Verified"
+                                          ? "Publish to Catalog"
+                                          : `Move to ${getNextCurationStatus(lead.status)}`}
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="rounded-2xl border border-[#dce9ff] bg-white p-4 space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <h4 className="text-sm font-bold text-[#0b1c30]">Source Gaps</h4>
+                            <span className="text-[10px] font-mono text-[#76777d]">
+                              {curationSummary.staleVerifiedRecords.length} stale
+                            </span>
+                          </div>
+                          {curationSummary.needsSource.length === 0 ? (
+                            <p className="text-xs text-[#45464d] leading-relaxed">
+                              Every catalog item has an official source URL. That is the kind of cleanliness we like.
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {curationSummary.needsSource.slice(0, 5).map((opportunity) => (
+                                <div key={opportunity.id} className="rounded-xl border border-[#ffdbca] bg-[#fff9f5] p-3">
+                                  <p className="text-sm font-bold text-[#0b1c30]">{opportunity.title}</p>
+                                  <p className="text-[10px] text-[#45464d] font-mono mt-0.5">
+                                    {opportunity.type} / {opportunity.region}
+                                  </p>
+                                </div>
+                              ))}
+                              {curationSummary.needsSource.length > 5 && (
+                                <p className="text-[10px] font-mono text-[#76777d]">
+                                  +{curationSummary.needsSource.length - 5} more records need source links.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#dce9ff] bg-[#f8f9ff] p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      <div className="space-y-2 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <div className="w-9 h-9 rounded-xl bg-[#131b2e] text-white flex items-center justify-center">
+                            <Database className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-[#0b1c30]">Backend Connection</h4>
+                            <p className="text-[10px] font-mono text-[#76777d] break-all">{backendSyncResult.endpoint}</p>
+                          </div>
+                        </div>
+                        <p className={`text-xs leading-relaxed ${
+                          backendSyncResult.status === "synced"
+                            ? "text-[#15803d]"
+                            : backendSyncResult.status === "failed"
+                              ? "text-[#9d4300]"
+                              : "text-[#45464d]"
+                        }`}>
+                          {backendSyncResult.message}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          onClick={handlePushBackendSnapshot}
+                          disabled={backendSyncResult.status === "syncing"}
+                          className="px-4 py-2.5 bg-[#fd761a] text-white hover:bg-[#9d4300] disabled:bg-[#ffdbca] disabled:text-[#9d4300] rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                        >
+                          <UploadCloud className="w-4 h-4" />
+                          <span>{backendSyncResult.status === "syncing" ? "Pushing..." : "Push Snapshot"}</span>
+                        </button>
+                        <button
+                          onClick={handleExportBackendSnapshot}
+                          className="px-4 py-2.5 bg-white border border-[#dce9ff] text-[#131b2e] hover:border-[#ffb690] rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Export JSON</span>
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+
+                  {applicationRecords.length === 0 ? (
+                    <section className="glass-panel rounded-3xl p-8 text-center space-y-4">
+                      <div className="w-14 h-14 rounded-2xl bg-[#eff4ff] border border-[#dce9ff] flex items-center justify-center mx-auto">
+                        <FileCheck className="w-7 h-7 text-[#131b2e]" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-[#0b1c30]">No application records yet</h3>
+                        <p className="text-sm text-[#45464d] mt-1">
+                          Apply to an opportunity or track a sponsored pathway to populate this command center.
+                        </p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <button
+                          onClick={() => setActiveTab("search")}
+                          className="px-4 py-2.5 bg-[#131b2e] text-white rounded-lg text-xs font-bold"
+                        >
+                          Browse Opportunities
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("visahub")}
+                          className="px-4 py-2.5 bg-[#fd761a] text-white rounded-lg text-xs font-bold"
+                        >
+                          Open Visa Hub
+                        </button>
+                      </div>
+                    </section>
+                  ) : (
+                    <section className="space-y-3">
+                      {applicationRecords.map((record) => (
+                        <div key={record.id} className="glass-panel rounded-2xl p-5 space-y-4">
+                          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="px-2.5 py-1 rounded-full bg-[#131b2e] text-white text-[10px] font-mono font-bold uppercase tracking-wider">
+                                  {record.category}
+                                </span>
+                                <span className="px-2.5 py-1 rounded-full bg-[#ffdbca] text-[#5c2400] text-[10px] font-mono font-bold uppercase tracking-wider">
+                                  {record.status}
+                                </span>
+                                <span className="text-[10px] text-[#76777d] font-mono">
+                                  Created {new Date(record.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <h3 className="text-base font-bold text-[#0b1c30]">{record.title}</h3>
+                              <p className="text-sm text-[#45464d]">{getRecordNextAction(record)}</p>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                              <button
+                                onClick={() => handleAdvanceApplicationRecord(record)}
+                                disabled={record.status === "Completed"}
+                                className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                                  record.status === "Completed"
+                                    ? "bg-[#eff4ff] text-[#76777d] cursor-not-allowed"
+                                    : "bg-[#fd761a] text-white hover:bg-[#9d4300]"
+                                }`}
+                              >
+                                {record.status === "Completed" ? "Completed" : `Move to ${getNextApplicationStatus(record.status)}`}
+                              </button>
+                              <button
+                                onClick={() => setActiveTab(record.category === "Visa Program" || record.category === "Sponsored Job" ? "visahub" : "search")}
+                                className="px-4 py-2.5 rounded-lg text-xs font-bold border border-[#dce9ff] bg-white text-[#131b2e] hover:border-[#ffb690]"
+                              >
+                                Open Source Area
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-[#dce9ff] pt-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76777d] flex items-center gap-1.5">
+                                <FileCheck className="w-3.5 h-3.5 text-[#fd761a]" />
+                                Deadline Planner
+                              </p>
+                              <span className="text-[10px] font-mono text-[#45464d]">
+                                {applicationTasks.filter((task) => task.applicationId === record.id && task.completed).length}/{applicationTasks.filter((task) => task.applicationId === record.id).length} complete
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {applicationTasks
+                                .filter((task) => task.applicationId === record.id)
+                                .map((task) => (
+                                  <label
+                                    key={task.id}
+                                    className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-all ${
+                                      task.completed
+                                        ? "bg-[#eff4ff] border-[#dce9ff]"
+                                        : "bg-white border-[#ffdbca] hover:border-[#ffb690]"
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={task.completed}
+                                      onChange={() => handleToggleApplicationTask(task)}
+                                      className="mt-1 accent-[#fd761a]"
+                                    />
+                                    <span className="space-y-1">
+                                      <span className={`block text-sm font-bold ${task.completed ? "text-[#76777d] line-through" : "text-[#0b1c30]"}`}>
+                                        {task.title}
+                                      </span>
+                                      <span className="block text-xs text-[#45464d] leading-relaxed">
+                                        {task.description}
+                                      </span>
+                                      <span className="flex flex-wrap gap-2 pt-1">
+                                        <span className="text-[10px] font-mono font-bold text-[#5c2400] bg-[#ffdbca] rounded-full px-2 py-0.5">
+                                          {task.priority}
+                                        </span>
+                                        <span className="text-[10px] font-mono text-[#76777d]">
+                                          Due {new Date(task.dueDate).toLocaleDateString()}
+                                        </span>
+                                      </span>
+                                    </span>
+                                  </label>
+                                ))}
+                            </div>
+                          </div>
+
+                          <div className="border-t border-[#dce9ff] pt-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76777d] flex items-center gap-1.5">
+                                <FolderOpen className="w-3.5 h-3.5 text-[#fd761a]" />
+                                Document Vault
+                              </p>
+                              <span className="text-[10px] font-mono text-[#45464d]">
+                                {applicationDocuments.filter((document) => document.applicationId === record.id && document.ready).length}/{applicationDocuments.filter((document) => document.applicationId === record.id).length} ready
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                              {applicationDocuments
+                                .filter((document) => document.applicationId === record.id)
+                                .map((document) => (
+                                  <label
+                                    key={document.id}
+                                    className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-all ${
+                                      document.ready
+                                        ? "bg-[#f4fff8] border-[#cdebd8]"
+                                        : document.required
+                                          ? "bg-white border-[#ffdbca] hover:border-[#ffb690]"
+                                          : "bg-white border-[#dce9ff] hover:border-[#ffb690]"
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={document.ready}
+                                      onChange={() => handleToggleApplicationDocument(document)}
+                                      className="mt-1 accent-[#15803d]"
+                                    />
+                                    <span className="space-y-1 min-w-0">
+                                      <span className={`block text-sm font-bold ${document.ready ? "text-[#15803d]" : "text-[#0b1c30]"}`}>
+                                        {document.name}
+                                      </span>
+                                      <span className="block text-xs text-[#45464d] leading-relaxed">
+                                        {document.description}
+                                      </span>
+                                      <span className="flex flex-wrap gap-2 pt-1">
+                                        <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-[#0b1c30] bg-[#eff4ff] rounded-full px-2 py-0.5">
+                                          <FileText className="w-3 h-3" />
+                                          {document.category}
+                                        </span>
+                                        <span className={`text-[10px] font-mono font-bold rounded-full px-2 py-0.5 ${
+                                          document.required
+                                            ? "text-[#5c2400] bg-[#ffdbca]"
+                                            : "text-[#45464d] bg-[#f3f4f6]"
+                                        }`}>
+                                          {document.required ? "Required" : "Optional"}
+                                        </span>
+                                      </span>
+                                    </span>
+                                  </label>
+                                ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </section>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 5: SAVED LIST SCREEN */}
               {activeTab === "saved" && (
                 <div className="space-y-6">
                   <section>
@@ -1521,7 +2909,7 @@ export default function App() {
                     <p className="text-slate-400 text-xs mt-0.5">Quick lookup of fully funded opportunities you bookmarked</p>
                   </section>
 
-                  {OPPORTUNITIES.filter((opp) => savedIds.includes(opp.id)).length === 0 ? (
+                  {opportunities.filter((opp) => savedIds.includes(opp.id)).length === 0 ? (
                     <div className="py-16 text-center border border-dashed border-white/10 rounded-2xl bg-white/5 space-y-3">
                       <Bookmark className="w-8 h-8 text-cyan-450 mx-auto" />
                       <p className="text-sm font-bold text-slate-400">Empty Saved Stream</p>
@@ -1534,12 +2922,13 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {OPPORTUNITIES.filter((opp) => savedIds.includes(opp.id)).map((opp) => (
+                      {opportunities.filter((opp) => savedIds.includes(opp.id)).map((opp) => (
                         <OpportunityCard
                           key={opp.id}
                           opportunity={opp}
                           layout="vertical"
                           isSaved={true}
+                          matchInsight={matchInsights[opp.id]}
                           onToggleSave={handleToggleSave}
                           onClick={() => {
                             setLastTab("saved");
@@ -1561,14 +2950,14 @@ export default function App() {
         <button
           id="fab-add-custom-track"
           onClick={() => setShowAddTrackModal(true)}
-          className="fixed right-6 bottom-24 w-14 h-14 bg-cyan-500 text-black hover:bg-cyan-400 rounded-2xl shadow-lg flex items-center justify-center active:scale-90 transition-transform z-40 cursor-pointer glow-cyan"
+          className="fixed right-6 bottom-24 w-14 h-14 bg-[#fd761a] text-white hover:bg-[#9d4300] rounded-2xl shadow-lg flex items-center justify-center active:scale-90 transition-transform z-40 cursor-pointer glow-cyan"
         >
           <Plus className="w-7 h-7" />
         </button>
       )}
 
       {/* Persistent Bottom Tab Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 w-full z-50 bg-[#020205]/95 backdrop-blur-md border-t border-white/10 flex justify-around items-center px-4 pb-4 pt-2.5 shadow-2xl">
+      <nav className="fixed bottom-0 left-0 w-full z-50 app-bottom-nav backdrop-blur-md border-t flex justify-around items-center px-4 pb-4 pt-2.5 shadow-2xl">
         {/* Home */}
         <button
           id="tab-home"
@@ -1579,8 +2968,8 @@ export default function App() {
           }}
           className={`flex flex-col items-center justify-center px-4 py-1.5 rounded-full transition-all duration-150 relative cursor-pointer ${
             activeTab === "home" && !selectedOpportunity
-              ? "bg-cyan-950/80 text-cyan-400 border border-cyan-400/20 font-bold font-mono"
-              : "text-slate-400 hover:text-slate-200"
+              ? "bg-[#131b2e] text-white border border-[#131b2e] font-bold font-mono"
+              : "text-[#45464d] hover:text-[#0b1c30]"
           }`}
         >
           <HomeIcon className="w-5 h-5" />
@@ -1597,8 +2986,8 @@ export default function App() {
           }}
           className={`flex flex-col items-center justify-center px-4 py-1.5 rounded-full transition-all duration-150 relative cursor-pointer ${
             activeTab === "search" || (selectedOpportunity && lastTab === "search")
-              ? "bg-cyan-950/80 text-cyan-400 border border-cyan-400/20 font-bold font-mono"
-              : "text-slate-400 hover:text-slate-200"
+              ? "bg-[#131b2e] text-white border border-[#131b2e] font-bold font-mono"
+              : "text-[#45464d] hover:text-[#0b1c30]"
           }`}
         >
           <SearchIcon className="w-5 h-5" />
@@ -1617,8 +3006,8 @@ export default function App() {
           }}
           className={`flex flex-col items-center justify-center px-4 py-1.5 rounded-full transition-all duration-150 relative cursor-pointer ${
             activeTab === "visahub" || (selectedOpportunity && lastTab === "visahub")
-              ? "bg-cyan-950/80 text-cyan-400 border border-cyan-400/20 font-bold font-mono"
-              : "text-slate-400 hover:text-slate-200"
+              ? "bg-[#131b2e] text-white border border-[#131b2e] font-bold font-mono"
+              : "text-[#45464d] hover:text-[#0b1c30]"
           }`}
         >
           <ShieldCheck className="w-5 h-5" />
@@ -1626,6 +3015,23 @@ export default function App() {
         </button>
 
         {/* Saved */}
+        <button
+          id="tab-command"
+          onClick={() => {
+            setSelectedOpportunity(null);
+            setLastTab("command");
+            setActiveTab("command");
+          }}
+          className={`flex flex-col items-center justify-center px-3 py-1.5 rounded-full transition-all duration-150 relative cursor-pointer ${
+            activeTab === "command" || (selectedOpportunity && lastTab === "command")
+              ? "bg-[#131b2e] text-white border border-[#131b2e] font-bold font-mono"
+              : "text-[#45464d] hover:text-[#0b1c30]"
+          }`}
+        >
+          <ClipboardList className="w-5 h-5" />
+          <span className="text-[10px] tracking-wide mt-0.5">Command</span>
+        </button>
+
         <button
           id="tab-saved"
           onClick={() => {
@@ -1635,8 +3041,8 @@ export default function App() {
           }}
           className={`flex flex-col items-center justify-center px-4 py-1.5 rounded-full transition-all duration-150 relative cursor-pointer ${
             activeTab === "saved" || (selectedOpportunity && lastTab === "saved")
-              ? "bg-cyan-950/80 text-cyan-400 border border-cyan-400/20 font-bold font-mono"
-              : "text-slate-400 hover:text-slate-200"
+              ? "bg-[#131b2e] text-white border border-[#131b2e] font-bold font-mono"
+              : "text-[#45464d] hover:text-[#0b1c30]"
           }`}
         >
           <Bookmark className="w-5 h-5" />
@@ -1714,6 +3120,8 @@ export default function App() {
                   >
                     <option value="Scholarship">Scholarship</option>
                     <option value="Fellowship">Fellowship</option>
+                    <option value="Job">Curated International Job</option>
+                    <option value="Volunteer">Volunteer Placement</option>
                     <option value="Workshop">Workshop</option>
                     <option value="Visa Sponsor">Direct Visa Sponsorship</option>
                   </select>
@@ -1744,3 +3152,4 @@ export default function App() {
     </div>
   );
 }
+

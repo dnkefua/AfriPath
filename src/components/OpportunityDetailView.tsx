@@ -13,7 +13,11 @@ import {
   CheckCircle,
   Clock,
   Sparkles,
-  Award
+  Award,
+  Shield,
+  BookOpen,
+  Briefcase,
+  ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -66,6 +70,12 @@ export const OpportunityDetailView: React.FC<OpportunityDetailViewProps> = ({
         return <Home className="w-5 h-5 text-cyan-400" />;
       case "Heart":
         return <Heart className="w-5 h-5 text-cyan-400" />;
+      case "Shield":
+        return <Shield className="w-5 h-5 text-cyan-400" />;
+      case "BookOpen":
+        return <BookOpen className="w-5 h-5 text-cyan-400" />;
+      case "Briefcase":
+        return <Briefcase className="w-5 h-5 text-cyan-400" />;
       default:
         return <Award className="w-5 h-5 text-cyan-400" />;
     }
@@ -150,6 +160,37 @@ export const OpportunityDetailView: React.FC<OpportunityDetailViewProps> = ({
               </p>
             </div>
 
+            {(opportunity.internationalApplicantPolicy || opportunity.curationEvidence?.length || opportunity.volunteerCommitment) && (
+              <div className="glass-panel p-6 rounded-2xl border border-[#ffb690]/40 relative overflow-hidden">
+                <h3 className="text-xs font-mono tracking-widest font-semibold uppercase text-[#9d4300] mb-3 pb-2 border-b border-[#dce9ff]">
+                  {opportunity.type === "Job" ? "International Hiring Evidence" : "Placement Curation Notes"}
+                </h3>
+                <div className="space-y-3 text-sm">
+                  {opportunity.internationalApplicantPolicy && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-[#ffdbca] px-3 py-1 text-xs font-bold text-[#5c2400]">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{opportunity.internationalApplicantPolicy}</span>
+                    </div>
+                  )}
+                  {opportunity.volunteerCommitment && (
+                    <p className="text-[#45464d]">
+                      Commitment: <span className="font-semibold text-[#0b1c30]">{opportunity.volunteerCommitment}</span>
+                    </p>
+                  )}
+                  {opportunity.curationEvidence?.length && (
+                    <ul className="space-y-2">
+                      {opportunity.curationEvidence.map((evidence, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-[#45464d]">
+                          <CheckCircle className="w-4 h-4 text-[#fd761a] flex-shrink-0 mt-0.5" />
+                          <span>{evidence}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="glass-panel p-6 rounded-2xl border border-white/10">
               <h3 className="text-xs font-mono tracking-widest font-semibold uppercase text-slate-400 mb-4 pb-2 border-b border-white/5">
                 Eligibility Criteria
@@ -190,7 +231,7 @@ export const OpportunityDetailView: React.FC<OpportunityDetailViewProps> = ({
               </div>
             </div>
 
-            <div className="glass-panel p-6 rounded-2xl border border-white/10 text-center">
+          <div className="glass-panel p-6 rounded-2xl border border-white/10 text-center">
               <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest leading-none mb-1.5">
                 Application Deadline
               </p>
@@ -206,6 +247,26 @@ export const OpportunityDetailView: React.FC<OpportunityDetailViewProps> = ({
                 </button>
               </div>
             </div>
+
+            {opportunity.sourceUrl && (
+              <div className="glass-panel p-6 rounded-2xl border border-[#cdebd8]">
+                <h3 className="text-xs font-mono tracking-widest font-semibold uppercase text-[#15803d] mb-3">
+                  Official Source
+                </h3>
+                <p className="text-xs text-[#45464d] leading-relaxed mb-4">
+                  Verified {opportunity.lastVerifiedAt || "recently"} from the program or government source.
+                </p>
+                <a
+                  href={opportunity.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-2.5 border border-[#cdebd8] bg-[#f4fff8] hover:bg-[#ecfff3] text-[#0b1c30] font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4 text-[#15803d]" />
+                  <span>Open Source</span>
+                </a>
+              </div>
+            )}
           </div>
         </section>
 
@@ -390,4 +451,3 @@ export const OpportunityDetailView: React.FC<OpportunityDetailViewProps> = ({
     </div>
   );
 };
-

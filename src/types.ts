@@ -7,20 +7,39 @@ export interface Benefit {
 export interface Opportunity {
   id: string;
   title: string;
-  type: "School" | "Workshop" | "Conference" | "Seminar" | "Scholarship" | "Fellowship";
+  type: "School" | "Workshop" | "Conference" | "Seminar" | "Scholarship" | "Fellowship" | "Job" | "Volunteer";
   description: string;
   eligibility: string[];
   benefits: Benefit[];
   location: string;
   deadline: string;
   rawDeadlineDate?: string; // used for sorting/comparison
-  badge: "Fully Funded" | "Visa Sponsored" | "Verified" | "Closing in 4 days" | "Closing Soon" | "Travel Grant Available";
+  badge: "Fully Funded" | "Visa Sponsored" | "Verified" | "Closing in 4 days" | "Closing Soon" | "Travel Grant Available" | "International Hiring" | "Volunteer Placement";
   stipend: string;
   imageUrl: string;
   logoUrl?: string;
   companyName?: string;
   fieldOfStudy: string[];
   region: string;
+  internationalApplicantPolicy?: "Visa Sponsorship" | "Work Permit Required" | "International Applicants Eligible" | "Remote International";
+  curationEvidence?: string[];
+  volunteerCommitment?: string;
+  sourceUrl?: string;
+  lastVerifiedAt?: string;
+}
+
+export interface UserPreferences {
+  passportCountry: string;
+  studyField: string;
+  destinationRegion: string;
+  opportunityGoal: "Scholarship" | "Career" | "Research" | "Volunteer" | "Any";
+  urgency: "Flexible" | "Soon" | "Urgent";
+}
+
+export interface MatchInsight {
+  score: number;
+  label: "Excellent Fit" | "Strong Fit" | "Good Fit" | "Explore";
+  reasons: string[];
 }
 
 export interface ActiveTrack {
@@ -104,4 +123,82 @@ export interface SponsoredJob {
   imageUrl: string;
 }
 
+export interface ApplicationRecord {
+  id: string;
+  sourceId: string;
+  title: string;
+  category: "Opportunity" | "Sponsored Job" | "Corporate Role" | "Visa Program";
+  status: "Tracked" | "Applied" | "Reviewing" | "Completed";
+  createdAt: string;
+}
 
+export interface ApplicationTask {
+  id: string;
+  applicationId: string;
+  title: string;
+  description: string;
+  dueDate: string;
+  completed: boolean;
+  priority: "High" | "Medium" | "Low";
+}
+
+export interface ApplicationDocument {
+  id: string;
+  applicationId: string;
+  name: string;
+  description: string;
+  required: boolean;
+  ready: boolean;
+  category: "Identity" | "Academic" | "Career" | "Financial" | "Visa" | "Statement";
+}
+
+export interface ApplicantCredential {
+  id: string;
+  name: string;
+  description: string;
+  category: ApplicationDocument["category"];
+  ready: boolean;
+  importance: "Core" | "Recommended" | "Optional";
+}
+
+export interface OpportunityCurationLead {
+  id: string;
+  title: string;
+  type: Opportunity["type"];
+  region: string;
+  sourceUrl: string;
+  notes: string;
+  status: "New" | "Researching" | "Verified" | "Published";
+  priority: "High" | "Medium" | "Low";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BackendSyncSnapshot {
+  generatedAt: string;
+  dataset: AfriPathDataset;
+  applicationRecords: ApplicationRecord[];
+  applicationTasks: ApplicationTask[];
+  applicationDocuments: ApplicationDocument[];
+  applicantCredentials: ApplicantCredential[];
+  curationLeads: OpportunityCurationLead[];
+  activeTracks: ActiveTrack[];
+  savedIds: string[];
+  preferences: UserPreferences;
+}
+
+export interface BackendSyncResult {
+  status: "idle" | "syncing" | "synced" | "failed";
+  endpoint: string;
+  message: string;
+  syncedAt?: string;
+}
+
+export interface AfriPathDataset {
+  opportunities: Opportunity[];
+  directoryEntries: DirectoryEntry[];
+  visaFreePrograms: VisaFreeProgram[];
+  visaSponsoredPrograms: VisaSponsorshipProgram[];
+  approvedSponsorCompanies: ApprovedSponsorCompany[];
+  approvedSponsorJobs: SponsoredJob[];
+}
