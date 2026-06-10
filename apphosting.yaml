@@ -1,0 +1,21 @@
+# Firebase App Hosting configuration for AfriPath.
+# App Hosting can infer many frameworks, but this Vite app is served by a small
+# Express production server so the backend has explicit build and run commands.
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+scripts:
+  buildCommand: npm run build
+  runCommand: npm run start
+
+outputFiles:
+  serverApp:
+    include:
+      - dist
+      - server.js
+      - package.json
+      - package-lock.json

@@ -1,12 +1,4 @@
 import {
-  APPROVED_SPONSOR_COMPANIES,
-  APPROVED_SPONSOR_JOBS,
-  DIRECTORY_ENTRIES,
-  OPPORTUNITIES,
-  VISA_FREE_PROGRAMS,
-  VISA_SPONSORED_PROGRAMS,
-} from "../data";
-import {
   AfriPathDataset,
   ApplicantCredential,
   ApplicationDocument,
@@ -22,6 +14,30 @@ const APPLICATION_DOCUMENTS_KEY = "afripath_application_documents";
 const APPLICANT_CREDENTIALS_KEY = "afripath_applicant_credentials";
 const CURATION_LEADS_KEY = "afripath_curation_leads";
 const CUSTOM_OPPORTUNITIES_KEY = "afripath_custom_opportunities";
+
+const FALLBACK_IMAGE_BY_TYPE: Partial<Record<Opportunity["type"], string>> = {
+  School: "https://lh3.googleusercontent.com/aida-public/AB6AXuBqjtuZm-5kV0OlLPEqD6aw4SuZy-_CS4-97MbcOpkRlsTfViPHIVtW3CCQNWgDIRF7jBzOvvtYwk_oOOFiT1l_MAMWD9QXV9ayuEeji7Uchsp4WtvJPMk-iiSm3ORYvp5QZIirEkE5nodJxmzMt-Rw6UEf1ejwVopM_SG_xMLEZxczJx5o32vRCWAyx4INrR0RGjToNARjvciaJN5R9ImLAoZFGrNIvnOAjJFdyupRwuo_-I2aAbpWnF0xZt-RymzdUy6JVZlBUbuW",
+  Fellowship: "https://lh3.googleusercontent.com/aida-public/AB6AXuCyfQQRZ6UbzGeJwZZkV5xKRKAOCnPmkpSyI9fc1choOTD__MRSr3Nf4XXivcd3mXRGlKOzZde2mU8HCkbc7kl1wsjhC4sWbB4tXxjb_DY5SSewnG1WXxo52TgHOiUuWROQei7PUKgZael3wtZRHRkRjb1q6YKaPl_p4bE_UmHGBH7NKBpRHtPF5LRRLihUzcNYdfGDrKsRTkLufhifKxKaP2GkTLkqfcpoN2pXnlbtSmZ5dHzYf6rPjVSIUOYHl2XwUfMLOrBCpmNJ",
+  Job: "https://lh3.googleusercontent.com/aida-public/AB6AXuDojIQ06HYWK_A_fCCREauj_fx1u7-vrMS0FuStxYUiBtrR5RLflWpxNKdgaakBzwJIgZ5UCYgH-fuB3bCosiXFtrroOT27lnsNHkCqqm6Wg7k820NxzGVpLtshDvgwd9_HypB3Z8y5-XDzOSm-FSIUD-FPe1-IwzeXrdyuCiJ5xMIvCFwZZjoWHVHo3cFL3Mmd0LN29Hzxs19NgqWGDocNqPwnVn5Cr9Gk9mEy1V2Rc8u4w-LEteVeP6MBBZ63MaqSNpvV5UnXiGea",
+  Volunteer: "https://lh3.googleusercontent.com/aida-public/AB6AXuArqn7dJE-NlfreHP4MMBOtohfmANqHfxpgS34pmI_LEHhkdof_2gTDREQQMVq-80AxpUcEVMqU8gVK2qg3ecGcuROhMJSfyFRk77qJHvZX6Vs5it_5aSK1oY5H6JWEmFXSCInXFpmw1i3h-b-Pb7bIQYHAKZSCWjmMXXpawrPqo4wDL3S5N1LFUT-xjqH8ko2zGn5KlK1m_ujU736J0SPG6GqhxAOUslZJGU4dwc7ilRSmz8YcEFhj5thBEg_m9YubQ62eYhee59HD",
+  Workshop: "https://lh3.googleusercontent.com/aida-public/AB6AXuBKAF7-5_64DjQB_r4AmpCN8zQ6GDZw6RJl5IBOfhQzq_fh7A5UwE4uv5fKSBt5EDCA0LV7_TdbXawvdzOMOhURNWRuj1MB5RFPD0i34Kv7GKppFe-Qp6WIMvjinenSCUDcPvKaggNWIVRteDsa6gpPWkx55F0TQpidOFnQIkGwT0kWGNvCtEkchL6UHnZ49w7wGF0Cgzp6IuhnOxtM3p8sGo6aS0ifiPkEV6dCBhv2OAUtaZhAuxnaaO8QN4LIxyahu7PKLGfM_Rt2",
+};
+
+const getFallbackImageUrl = (type: Opportunity["type"]) =>
+  FALLBACK_IMAGE_BY_TYPE[type] ?? FALLBACK_IMAGE_BY_TYPE.School ?? "";
+
+const loadCatalogDataset = async (): Promise<AfriPathDataset> => {
+  const catalog = await import("../data");
+
+  return {
+    opportunities: [...catalog.OPPORTUNITIES, ...readCustomOpportunities()],
+    directoryEntries: catalog.DIRECTORY_ENTRIES,
+    visaFreePrograms: catalog.VISA_FREE_PROGRAMS,
+    visaSponsoredPrograms: catalog.VISA_SPONSORED_PROGRAMS,
+    approvedSponsorCompanies: catalog.APPROVED_SPONSOR_COMPANIES,
+    approvedSponsorJobs: catalog.APPROVED_SPONSOR_JOBS,
+  };
+};
 
 const delay = (duration = 180) => new Promise((resolve) => setTimeout(resolve, duration));
 
@@ -210,15 +226,6 @@ const inferInternationalPolicy = (
   return "International Applicants Eligible";
 };
 
-const inferImageUrl = (type: Opportunity["type"]) => {
-  const source =
-    OPPORTUNITIES.find((opportunity) => opportunity.type === type) ??
-    OPPORTUNITIES.find((opportunity) => opportunity.type === "School") ??
-    OPPORTUNITIES[0];
-
-  return source.imageUrl;
-};
-
 const buildPublishedOpportunity = (lead: OpportunityCurationLead): Opportunity => ({
   id: `published-${slugify(lead.title)}-${Date.now()}`,
   title: lead.title,
@@ -241,7 +248,7 @@ const buildPublishedOpportunity = (lead: OpportunityCurationLead): Opportunity =
   rawDeadlineDate: new Date(new Date().setMonth(new Date().getMonth() + 6)).toISOString(),
   badge: inferOpportunityBadge(lead.type),
   stipend: lead.type === "Job" ? "Salary by employer" : lead.type === "Volunteer" ? "Volunteer support varies" : "Funding details on source",
-  imageUrl: inferImageUrl(lead.type),
+  imageUrl: getFallbackImageUrl(lead.type),
   fieldOfStudy: ["Engineering", "Medicine", "Social Sciences", "Information Technology"],
   region: lead.region,
   internationalApplicantPolicy: inferInternationalPolicy(lead.type),
@@ -373,15 +380,7 @@ const ensureDocumentsForRecord = (record: ApplicationRecord) => {
 export const afripathApi = {
   async getDataset(): Promise<AfriPathDataset> {
     await delay();
-
-    return {
-      opportunities: [...OPPORTUNITIES, ...readCustomOpportunities()],
-      directoryEntries: DIRECTORY_ENTRIES,
-      visaFreePrograms: VISA_FREE_PROGRAMS,
-      visaSponsoredPrograms: VISA_SPONSORED_PROGRAMS,
-      approvedSponsorCompanies: APPROVED_SPONSOR_COMPANIES,
-      approvedSponsorJobs: APPROVED_SPONSOR_JOBS,
-    };
+    return loadCatalogDataset();
   },
 
   async listApplicationRecords(): Promise<ApplicationRecord[]> {

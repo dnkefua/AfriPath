@@ -6,3 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
+app-store/builds/
+app-store/signing/

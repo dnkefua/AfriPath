@@ -48,7 +48,7 @@ import {
 import {
   INITIAL_ACTIVE_TRACKS,
   USER_PROFILES,
-} from "./data";
+} from "./sessionData";
 import { OpportunityCard } from "./components/OpportunityCard";
 import { ActiveTrackWidget } from "./components/ActiveTrackWidget";
 import { OpportunityDetailView } from "./components/OpportunityDetailView";
@@ -82,6 +82,8 @@ const CURATION_STATUS_FLOW: OpportunityCurationLead["status"][] = ["New", "Resea
 const CURATION_TYPE_OPTIONS: Opportunity["type"][] = ["School", "Fellowship", "Job", "Volunteer", "Workshop", "Conference", "Seminar"];
 const AFRIPATH_LOGO_SRC = "/assets/afripath-logo.png";
 const AFRIPATH_3D_INTRO_SRC = "/assets/afripath-3d-logo-intro.mp4";
+const PRIVACY_POLICY_URL = new URL("/privacy.html", APP_URL).toString();
+const SUPPORT_URL = new URL("/support.html", APP_URL).toString();
 
 export default function App() {
   // Navigation & Page State
@@ -2943,6 +2945,24 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {!selectedOpportunity && (
+          <section className="mt-8 mb-4 rounded-2xl border border-[#d7e2dd] bg-white/75 px-4 py-3 text-xs text-[#45464d] shadow-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                AfriPath is an independent opportunity discovery and readiness tool by NDN Analytics.
+              </p>
+              <div className="flex flex-wrap items-center gap-3 font-semibold text-[#0b1c30]">
+                <a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer" className="hover:text-[#fd761a]">
+                  Privacy Policy
+                </a>
+                <a href={SUPPORT_URL} target="_blank" rel="noreferrer" className="hover:text-[#fd761a]">
+                  Support
+                </a>
+              </div>
+            </div>
+          </section>
+        )}
       </main>
 
       {/* Floating Action Button (FAB) on the right */}
