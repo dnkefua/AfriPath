@@ -112,11 +112,11 @@ export const OpportunityDetailView: React.FC<OpportunityDetailViewProps> = ({
             )}
           </div>
 
-          <h1 className="text-2xl font-bold tracking-tight text-white leading-tight">
+          <h1 className="text-2xl font-bold tracking-tight text-[#0b1c30] leading-tight">
             {opportunity.title}
           </h1>
 
-          <p className="flex items-center gap-2 text-slate-400 text-sm font-medium">
+          <p className="flex items-center gap-2 text-[#45464d] text-sm font-medium">
             <MapPin className="w-4 h-4 text-cyan-400" />
             <span>{opportunity.location}</span>
           </p>
@@ -184,21 +184,21 @@ export const OpportunityDetailView: React.FC<OpportunityDetailViewProps> = ({
 
           {/* Right: Benefits & Timeline */}
           <div className="space-y-6">
-            <div className="bg-indigo-950/20 border border-indigo-500/20 p-6 rounded-2xl">
-              <h3 className="text-xs font-mono tracking-widest font-semibold uppercase text-cyan-400 mb-4">
+            <div className="bg-[#eff4ff] border border-[#dce9ff] p-6 rounded-2xl">
+              <h3 className="text-xs font-mono tracking-widest font-semibold uppercase text-cyan-700 mb-4">
                 Benefits
               </h3>
               <div className="space-y-4">
                 {opportunity.benefits.map((benefit, idx) => (
                   <div key={idx} className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-cyan-400/20 flex-shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-[#dce9ff] flex-shrink-0">
                       {getBenefitIcon(benefit.iconName)}
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-200 leading-tight">
+                      <p className="text-xs font-bold text-[#0b1c30] leading-tight">
                         {benefit.label}
                       </p>
-                      <p className="text-xs text-slate-400 leading-normal mt-0.5">
+                      <p className="text-xs text-[#45464d] leading-normal mt-0.5">
                         {benefit.value}
                       </p>
                     </div>
@@ -248,7 +248,7 @@ export const OpportunityDetailView: React.FC<OpportunityDetailViewProps> = ({
         {/* Related Opportunities Section */}
         {relatedOpportunities.length > 0 && (
           <section className="mt-8 space-y-4">
-            <h3 className="text-xs font-mono tracking-widest font-bold uppercase text-slate-300">
+            <h3 className="text-xs font-mono tracking-widest font-bold uppercase text-[#45464d]">
               Related Opportunities
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -257,7 +257,7 @@ export const OpportunityDetailView: React.FC<OpportunityDetailViewProps> = ({
                   id={`related-card-${related.id}`}
                   key={related.id}
                   onClick={() => onSelectRelated(related)}
-                  className="flex gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl hover:border-cyan-400/40 hover:shadow-[0_0_15px_rgba(34,211,238,0.15)] transition-all cursor-pointer group"
+                  className="flex gap-4 p-3 bg-white border border-[#dce9ff] rounded-2xl hover:border-cyan-400/60 hover:shadow-[0_0_15px_rgba(34,211,238,0.15)] transition-all cursor-pointer group"
                 >
                   <div className="w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden bg-slate-900 border border-white/5">
                     <SmartImage
@@ -268,15 +268,15 @@ export const OpportunityDetailView: React.FC<OpportunityDetailViewProps> = ({
                   </div>
                   <div className="flex flex-col justify-between py-0.5">
                     <div>
-                      <h4 className="text-xs font-bold text-slate-200 group-hover:text-cyan-400 transition-colors line-clamp-2">
+                      <h4 className="text-xs font-bold text-[#0b1c30] group-hover:text-cyan-700 transition-colors line-clamp-2">
                         {related.title}
                       </h4>
-                      <p className="text-slate-400 text-[10px] flex items-center gap-1 mt-1">
-                        <MapPin className="w-3 h-3 text-cyan-400" />
+                      <p className="text-[#45464d] text-[10px] flex items-center gap-1 mt-1">
+                        <MapPin className="w-3 h-3 text-cyan-600" />
                         <span>{related.location.split(",")[1] || related.location}</span>
                       </p>
                     </div>
-                    <span className="text-[10px] font-mono text-amber-400 font-semibold uppercase">
+                    <span className="text-[10px] font-mono text-[#9d4300] font-semibold uppercase">
                       {related.badge}
                     </span>
                   </div>
