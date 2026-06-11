@@ -31,7 +31,7 @@ export const ActiveTrackWidget: React.FC<ActiveTrackWidgetProps> = ({
       <div className="relative z-10 space-y-4">
         <div className="flex justify-between items-start">
           <div>
-            <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#9d4300]">BENCHMARK PIPELINE</h4>
+            <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#9d4300]">MY TRACKER</h4>
             <p className="text-sm font-semibold text-[#0b1c30] mt-1 leading-tight">{track.opportunityTitle}</p>
           </div>
           <span className="text-[10px] font-mono font-bold tracking-tight px-3 py-1 bg-[#eff4ff] border border-[#d3e4fe] text-[#45464d] rounded-full shadow-sm whitespace-nowrap">
@@ -144,10 +144,10 @@ export const ActiveTrackWidget: React.FC<ActiveTrackWidgetProps> = ({
                           {phaseName}
                         </h4>
                         <p className="text-xs text-slate-400">
-                          {isCompleted 
-                            ? "Verified by agency systems." 
-                            : isActive 
-                            ? "Current active benchmark." 
+                          {isCompleted
+                            ? "Marked complete by you."
+                            : isActive
+                            ? "Your current stage."
                             : "Awaiting preceding step."
                           }
                         </p>

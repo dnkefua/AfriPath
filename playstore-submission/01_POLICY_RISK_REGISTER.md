@@ -17,5 +17,5 @@
 
 ## LOW
 
-- Support email is not committed in the repository. Add the final developer support email in Play Console and in `public/support.html` when confirmed.
-- `@google/genai` exists as a dependency but no active AI generation UI was found. Remove it later if unused to reduce policy review questions and bundle surface.
+- Support email confirmed: nkefua@ndnanalytics.com (set in `public/support.html` and `public/privacy.html`; enter the same address in Play Console). RESOLVED June 11, 2026.
+- `@google/genai` dependency removed in v1.1.0. RESOLVED June 11, 2026.

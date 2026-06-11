@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Check, ClipboardList, Send, Milestone, Sparkles } from "lucide-react";
+import { Check, ClipboardList, Send, Milestone } from "lucide-react";
+import { storage } from "../services/storage";
 
 interface Step {
   title: string;
@@ -7,35 +8,43 @@ interface Step {
   status: "completed" | "active" | "pending";
 }
 
+const STEP_KEY = "afripath_visa_planner_step";
+
+// Self-reported visa journey planner. The user marks their own progress;
+// AfriPath has no connection to consulates or application systems.
 export const VisaProgressTracker: React.FC = () => {
-  const [activeStep, setActiveStep] = useState<number>(1); // Index 0: verified, 1: review, 2: sent, 3: issued
+  const [activeStep, setActiveStep] = useState<number>(() => {
+    const saved = Number(storage.get(STEP_KEY));
+    return Number.isInteger(saved) && saved >= 0 && saved <= 3 ? saved : 0;
+  });
+
+  const updateStep = (index: number) => {
+    setActiveStep(index);
+    storage.set(STEP_KEY, String(index));
+  };
 
   const steps: Step[] = [
     {
-      title: "Profile Verified",
-      desc: "Valid passport & transcripts linked.",
+      title: "Documents Ready",
+      desc: "Passport, transcripts, and finances gathered.",
       status: activeStep > 0 ? "completed" : activeStep === 0 ? "active" : "pending"
     },
     {
-      title: "Document Review",
-      desc: "Sponsorship declaration review.",
+      title: "Application Prepared",
+      desc: "Forms and sponsorship evidence drafted.",
       status: activeStep > 1 ? "completed" : activeStep === 1 ? "active" : "pending"
     },
     {
-      title: "Application Sent",
-      desc: "Dispatched to consulate queues.",
+      title: "Submitted",
+      desc: "Lodged through the official channel.",
       status: activeStep > 2 ? "completed" : activeStep === 2 ? "active" : "pending"
     },
     {
-      title: "Visa Issued",
-      desc: "Official sticker generated.",
+      title: "Decision Received",
+      desc: "Outcome recorded for your records.",
       status: activeStep > 3 ? "completed" : activeStep === 3 ? "active" : "pending"
     }
   ];
-
-  const handleStepClick = (index: number) => {
-    setActiveStep(index);
-  };
 
   const getStepIcon = (index: number, status: string) => {
     switch (index) {
@@ -56,12 +65,13 @@ export const VisaProgressTracker: React.FC = () => {
     <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-white/10">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h3 className="text-lg font-bold text-slate-100">My Visa Progress</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Track real-time biometric and consulate queue statuses</p>
+          <h3 className="text-lg font-bold text-slate-100">My Visa Journey</h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Mark your own milestones as you move through the official process
+          </p>
         </div>
         <div className="bg-cyan-950/85 text-cyan-400 border border-cyan-400/20 px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 font-mono">
-          <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
-          <span>Active Hub: Tier 2 Priority</span>
+          <span>Self-reported</span>
         </div>
       </div>
 
@@ -73,11 +83,11 @@ export const VisaProgressTracker: React.FC = () => {
         {steps.map((step, idx) => {
           const isCompleted = step.status === "completed";
           const isActive = step.status === "active";
-          
+
           return (
             <div
               key={idx}
-              onClick={() => handleStepClick(idx)}
+              onClick={() => updateStep(idx)}
               className="flex items-center md:flex-col gap-4 md:gap-2 relative z-10 bg-transparent group cursor-pointer flex-1 text-left md:text-center transition-all duration-300"
             >
               {/* Bubble ring */}
@@ -86,7 +96,7 @@ export const VisaProgressTracker: React.FC = () => {
                   isCompleted
                     ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/20"
                     : isActive
-                    ? "bg-[#fd761a] text-white animate-pulse ring-4 ring-orange-500/10"
+                    ? "bg-[#fd761a] text-white ring-4 ring-orange-500/10"
                     : "bg-white/5 text-slate-400 border border-white/10"
                 }`}
               >
@@ -112,31 +122,24 @@ export const VisaProgressTracker: React.FC = () => {
       </div>
 
       {/* Info card relative to step */}
-      <div className="mt-8 bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider block">
-            Queue Action Required
-          </span>
-          <p className="text-sm font-bold text-slate-200 mt-1">
-            {steps[activeStep].title} Details
-          </p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {activeStep === 0 && "Your profiles match ECOWAS & UK consulate rules. Complete."}
-            {activeStep === 1 && "Pending: Submit proof of sponsor finances before June 15."}
-            {activeStep === 2 && "Awaiting biometrics verification confirmation."}
-            {activeStep === 3 && "Verified. Please coordinate delivery of passport."}
-          </p>
-        </div>
-        {activeStep === 1 && (
-          <button
-            onClick={() => alert("Upload dialog spawned. Attach financial declaration PDF.")}
-            className="px-4 py-2 bg-cyan-500 text-black hover:bg-cyan-400 text-xs font-bold rounded-xl cursor-pointer max-w-max transition-all shadow-md shadow-cyan-500/20"
-          >
-            Upload Document PDF
-          </button>
-        )}
+      <div className="mt-8 bg-white/5 border border-white/5 rounded-2xl p-4">
+        <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider block">
+          Current Stage
+        </span>
+        <p className="text-sm font-bold text-slate-200 mt-1">
+          {steps[activeStep].title}
+        </p>
+        <p className="text-xs text-slate-400 mt-0.5">
+          {activeStep === 0 && "Use the Command Center's Profile Vault to confirm each core document."}
+          {activeStep === 1 && "Double-check eligibility and fees on the official government site before submitting."}
+          {activeStep === 2 && "Decisions come from the consulate or program directly - keep an eye on their channels."}
+          {activeStep === 3 && "Congratulations on reaching a decision. Record the outcome in your tracker."}
+        </p>
+        <p className="text-[10px] text-slate-500 mt-3 pt-3 border-t border-white/5">
+          This planner is a personal checklist stored on your device. It is not connected to any
+          government or consulate system.
+        </p>
       </div>
     </div>
   );
 };
-

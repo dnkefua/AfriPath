@@ -27,7 +27,7 @@ export const scoreOpportunityMatch = (
   opportunity: Opportunity,
   preferences: UserPreferences,
 ): MatchInsight => {
-  let score = 38;
+  let score = 20;
   const reasons: string[] = [];
 
   if (opportunity.fieldOfStudy.includes(preferences.studyField)) {
@@ -78,7 +78,9 @@ export const scoreOpportunityMatch = (
     }
   }
 
-  const normalizedScore = Math.min(98, Math.max(35, score));
+  // Cap below 100 — relevance is a heuristic, never a guarantee. No artificial
+  // floor: weak matches should look weak.
+  const normalizedScore = Math.min(98, Math.max(0, score));
   const label: MatchInsight["label"] =
     normalizedScore >= 86
       ? "Excellent Fit"

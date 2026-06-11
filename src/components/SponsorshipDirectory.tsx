@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { DirectoryEntry } from "../types";
-import { MapPin, ShieldCheck, Briefcase, Send, Sparkles } from "lucide-react";
+import { MapPin, ShieldCheck, Briefcase, ClipboardList } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { SmartImage } from "./SmartImage";
 
 interface SponsorshipDirectoryProps {
   entries: DirectoryEntry[];
@@ -65,31 +66,19 @@ export const SponsorshipDirectory: React.FC<SponsorshipDirectoryProps> = ({
   onApplyRole,
 }) => {
   const [selectedEntry, setSelectedEntry] = useState<DirectoryEntry | null>(null);
-  const [appliedRoleIndex, setAppliedRoleIndex] = useState<number | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleOpenRoles = (entry: DirectoryEntry) => {
     setSelectedEntry(entry);
-    setAppliedRoleIndex(null);
   };
 
   const handleClose = () => {
     setSelectedEntry(null);
-    setAppliedRoleIndex(null);
   };
 
-  const handleApply = (role: JobRole, index: number) => {
+  const handleTrackRole = (role: JobRole) => {
     if (!selectedEntry) return;
-    setIsSubmitting(true);
-    setAppliedRoleIndex(index);
-    
-    // Simulate API delay
-    setTimeout(() => {
-      onApplyRole(selectedEntry.title, role.title);
-      setIsSubmitting(false);
-      setSelectedEntry(null);
-      setAppliedRoleIndex(null);
-    }, 1500);
+    onApplyRole(selectedEntry.title, role.title);
+    setSelectedEntry(null);
   };
 
   return (
@@ -101,11 +90,10 @@ export const SponsorshipDirectory: React.FC<SponsorshipDirectoryProps> = ({
           className="glass-panel rounded-[24px] overflow-hidden border border-white/10 hover:border-cyan-400/40 hover:shadow-[0_0_20px_rgba(34,211,238,0.25)] transition-all duration-300 flex flex-col justify-between"
         >
           <div className="h-48 relative overflow-hidden bg-slate-950/80">
-            <img
+            <SmartImage
               src={entry.imageUrl}
               alt={entry.title}
               className="w-full h-full object-cover opacity-80"
-              referrerPolicy="no-referrer"
             />
             {entry.isGovernmentApproved && (
               <div className="absolute top-4 right-4 px-3 py-1 bg-emerald-950/95 text-emerald-300 border border-emerald-500/20 text-[10px] font-bold rounded-full flex items-center gap-1.5 shadow-sm backdrop-blur-md">
@@ -126,11 +114,10 @@ export const SponsorshipDirectory: React.FC<SponsorshipDirectoryProps> = ({
                   </div>
                 </div>
                 {entry.logoUrl && (
-                  <img
+                  <SmartImage
                     src={entry.logoUrl}
                     alt={`${entry.title} Logo`}
                     className="w-10 h-10 rounded-lg object-contain bg-white/10 p-1 border border-white/10"
-                    referrerPolicy="no-referrer"
                   />
                 )}
               </div>
@@ -188,11 +175,10 @@ export const SponsorshipDirectory: React.FC<SponsorshipDirectoryProps> = ({
             >
               {/* Header */}
               <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
-                <img
+                <SmartImage
                   src={selectedEntry.logoUrl}
                   alt={selectedEntry.title}
                   className="w-12 h-12 rounded-xl object-contain bg-white/10 p-1.5"
-                  referrerPolicy="no-referrer"
                 />
                 <div className="flex-grow">
                   <span className="text-[10px] bg-cyan-950/80 text-cyan-400 border border-cyan-400/20 px-2.5 py-0.5 rounded-full font-bold">
@@ -212,7 +198,6 @@ export const SponsorshipDirectory: React.FC<SponsorshipDirectoryProps> = ({
               {/* Roles listing */}
               <div className="space-y-4 max-h-[320px] overflow-y-auto pr-1">
                 {COMPANY_ROLES[selectedEntry.title]?.map((role, idx) => {
-                  const isApplyingThis = idx === appliedRoleIndex;
                   return (
                     <div
                       key={idx}
@@ -243,28 +228,14 @@ export const SponsorshipDirectory: React.FC<SponsorshipDirectoryProps> = ({
                         ))}
                       </div>
 
-                      {/* Apply button inside roles */}
+                      {/* Track button inside roles */}
                       <div className="pt-2 flex justify-end">
                         <button
-                          disabled={isSubmitting}
-                          onClick={() => handleApply(role, idx)}
-                          className={`px-4 py-2 text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-md transition-transform active:scale-95 ${
-                            isApplyingThis
-                              ? "bg-slate-700 text-slate-200 animate-pulse"
-                              : "bg-cyan-500 text-black hover:bg-cyan-400 glow-cyan"
-                          }`}
+                          onClick={() => handleTrackRole(role)}
+                          className="px-4 py-2 text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-md transition-transform active:scale-95 bg-cyan-500 text-black hover:bg-cyan-400 glow-cyan"
                         >
-                          {isApplyingThis ? (
-                            <>
-                              <Sparkles className="w-3.5 h-3.5 animate-spin" />
-                              <span>Sending CV...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Send className="w-3.5 h-3.5" />
-                              <span>Apply & Sponsor</span>
-                            </>
-                          )}
+                          <ClipboardList className="w-3.5 h-3.5" />
+                          <span>Track This Role</span>
                         </button>
                       </div>
                     </div>
@@ -273,7 +244,8 @@ export const SponsorshipDirectory: React.FC<SponsorshipDirectoryProps> = ({
               </div>
 
               <div className="text-[10px] font-mono text-slate-500 mt-4 text-center">
-                🛡️ Transmissions authenticated via secure Secure-Link credential systems.
+                Tracking saves the role to your device. Apply through the employer's official
+                channel.
               </div>
             </motion.div>
           </div>

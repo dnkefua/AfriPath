@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { App as CapacitorApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+import { StatusBar, Style } from "@capacitor/status-bar";
 import {
   GraduationCap,
   Users,
@@ -46,9 +49,10 @@ import {
   UserPreferences,
 } from "./types";
 import {
+  DEFAULT_USER_PROFILE,
   INITIAL_ACTIVE_TRACKS,
-  USER_PROFILES,
 } from "./sessionData";
+import { storage } from "./services/storage";
 import { OpportunityCard } from "./components/OpportunityCard";
 import { ActiveTrackWidget } from "./components/ActiveTrackWidget";
 import { OpportunityDetailView } from "./components/OpportunityDetailView";
@@ -60,7 +64,7 @@ import { afripathApi } from "./services/afripathApi";
 import { backendSync } from "./services/backendSync";
 
 const loadUserPreferences = (): UserPreferences => {
-  const saved = localStorage.getItem("afripath_preferences");
+  const saved = storage.get("afripath_preferences");
   if (!saved) return DEFAULT_USER_PREFERENCES;
 
   try {
@@ -69,6 +73,20 @@ const loadUserPreferences = (): UserPreferences => {
     return DEFAULT_USER_PREFERENCES;
   }
 };
+
+const loadUserProfile = (): UserProfile => {
+  const saved = storage.get("afripath_profile");
+  if (!saved) return DEFAULT_USER_PROFILE;
+
+  try {
+    return { ...DEFAULT_USER_PROFILE, ...JSON.parse(saved) };
+  } catch {
+    return DEFAULT_USER_PROFILE;
+  }
+};
+
+const APP_VERSION = "1.1.0";
+const DEV_MODE_TAP_TARGET = 7;
 
 const STUDY_FIELDS = ["Engineering", "Medicine", "Social Sciences", "Information Technology"];
 const DESTINATION_REGIONS = ["All", "United Kingdom", "Canada", "Germany", "USA", "Remote"];
@@ -81,7 +99,6 @@ const APPLICATION_STATUS_FLOW: ApplicationRecord["status"][] = ["Tracked", "Appl
 const CURATION_STATUS_FLOW: OpportunityCurationLead["status"][] = ["New", "Researching", "Verified", "Published"];
 const CURATION_TYPE_OPTIONS: Opportunity["type"][] = ["School", "Fellowship", "Job", "Volunteer", "Workshop", "Conference", "Seminar"];
 const AFRIPATH_LOGO_SRC = "/assets/afripath-logo.png";
-const AFRIPATH_3D_INTRO_SRC = "/assets/afripath-3d-logo-intro.mp4";
 const PRIVACY_POLICY_URL = new URL("/privacy.html", APP_URL).toString();
 const SUPPORT_URL = new URL("/support.html", APP_URL).toString();
 
@@ -91,10 +108,12 @@ export default function App() {
   const [lastTab, setLastTab] = useState<AppTab>("home");
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
 
-  // User & Global Session State
-  const [currentUserIdx, setCurrentUserIdx] = useState<number>(0);
-  const user = USER_PROFILES[currentUserIdx];
+  // User & Global Session State — single local profile, no accounts
+  const [user, setUser] = useState<UserProfile>(loadUserProfile);
+  const [profileNameDraft, setProfileNameDraft] = useState(user.name);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [devMode, setDevMode] = useState<boolean>(() => storage.get("afripath_devmode") === "1");
+  const [devTapCount, setDevTapCount] = useState(0);
   const [showPreferenceEditor, setShowPreferenceEditor] = useState(false);
   const [preferences, setPreferences] = useState<UserPreferences>(loadUserPreferences);
   const [dataset, setDataset] = useState<AfriPathDataset>({
@@ -127,14 +146,14 @@ export default function App() {
     approvedSponsorJobs,
   } = dataset;
 
-  // Persisted bookmarks & custom tracks via standard browser client key-value state
+  // Persisted bookmarks & custom tracks — both start empty for new users
   const [savedIds, setSavedIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem("afripath_saved");
-    return saved ? JSON.parse(saved) : ["gates-cambridge-2024", "rhodes-scholarship-2025"];
+    const saved = storage.get("afripath_saved");
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [activeTracks, setActiveTracks] = useState<ActiveTrack[]>(() => {
-    const tracks = localStorage.getItem("afripath_tracks");
+    const tracks = storage.get("afripath_tracks");
     return tracks ? JSON.parse(tracks) : INITIAL_ACTIVE_TRACKS;
   });
 
@@ -160,14 +179,9 @@ export default function App() {
   // Passport selection state for visa-free lookup
   const [userPassport, setUserPassport] = useState<string>("Nigeria");
 
-  // Notifications State
+  // Notifications State — derived from real data (saved deadlines), never seeded
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<string[]>([
-    "Your profile has been matched with 4 new fully funded opportunities today!",
-    "UK Skilled Worker sponsorship quota has updated.",
-    "Reminder: Gates Cambridge applications open in 2 months.",
-    "DAAD progress updated to Phase 2: 'Document Review'"
-  ]);
+  const [notifications, setNotifications] = useState<string[]>([]);
 
   // Contextual Modal state for manually inserting new custom tracking
   const [showAddTrackModal, setShowAddTrackModal] = useState(false);
@@ -190,18 +204,66 @@ export default function App() {
   // Success alert overlay status
   const [successAlert, setSuccessAlert] = useState<string | null>(null);
 
-  // Sync to local storage
+  // Sync to durable storage (localStorage mirrored to native Preferences)
   useEffect(() => {
-    localStorage.setItem("afripath_saved", JSON.stringify(savedIds));
+    storage.set("afripath_saved", JSON.stringify(savedIds));
   }, [savedIds]);
 
   useEffect(() => {
-    localStorage.setItem("afripath_tracks", JSON.stringify(activeTracks));
+    storage.set("afripath_tracks", JSON.stringify(activeTracks));
   }, [activeTracks]);
 
   useEffect(() => {
-    localStorage.setItem("afripath_preferences", JSON.stringify(preferences));
+    storage.set("afripath_preferences", JSON.stringify(preferences));
   }, [preferences]);
+
+  useEffect(() => {
+    storage.set("afripath_profile", JSON.stringify(user));
+  }, [user]);
+
+  useEffect(() => {
+    storage.set("afripath_devmode", devMode ? "1" : "0");
+  }, [devMode]);
+
+  // Native Android polish: brand status bar + hardware back button handling
+  const backNavStateRef = useRef<{
+    closeOverlay: () => boolean;
+    hasDetail: boolean;
+    clearDetail: () => void;
+    isHome: boolean;
+    goHome: () => void;
+  }>({
+    closeOverlay: () => false,
+    hasDetail: false,
+    clearDetail: () => {},
+    isHome: true,
+    goHome: () => {},
+  });
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    StatusBar.setBackgroundColor({ color: "#131b2e" }).catch(() => {});
+    StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+
+    const listener = CapacitorApp.addListener("backButton", () => {
+      const nav = backNavStateRef.current;
+      if (nav.closeOverlay()) return;
+      if (nav.hasDetail) {
+        nav.clearDetail();
+        return;
+      }
+      if (!nav.isHome) {
+        nav.goHome();
+        return;
+      }
+      CapacitorApp.minimizeApp();
+    });
+
+    return () => {
+      listener.then((handle) => handle.remove());
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -242,6 +304,30 @@ export default function App() {
       isMounted = false;
     };
   }, []);
+
+  // Real notifications: upcoming deadlines on saved opportunities only.
+  useEffect(() => {
+    if (!dataset.opportunities.length) return;
+
+    const upcoming = dataset.opportunities
+      .filter((opportunity) => savedIds.includes(opportunity.id) && opportunity.rawDeadlineDate)
+      .map((opportunity) => {
+        const target = new Date(`${opportunity.rawDeadlineDate}T00:00:00`);
+        const days = Math.ceil((target.getTime() - Date.now()) / 86_400_000);
+        return { opportunity, days };
+      })
+      .filter(({ days }) => days > 0 && days <= 90)
+      .sort((a, b) => a.days - b.days)
+      .slice(0, 6)
+      .map(({ opportunity, days }) =>
+        `${opportunity.title} closes in ${days} day${days === 1 ? "" : "s"}.`,
+      );
+
+    setNotifications(upcoming);
+    // Recompute only when the dataset arrives; saving/unsaving mid-session
+    // shouldn't resurrect cleared notifications.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataset.opportunities]);
 
   const matchInsights = useMemo(() => {
     return Object.fromEntries(
@@ -584,10 +670,10 @@ export default function App() {
     triggerSuccessAlert(`Application progress advanced to Phase ${nextPhase}!`);
   };
 
-  // Submit profile/CV simulation inside detail overlay
-  const handleApplySuccess = (opportunity: Opportunity) => {
-    // Add to Active Track list
-    const alreadyTracked = activeTracks.some((t) => t.opportunityTitle.includes(opportunity.title));
+  // Adds the opportunity to the user's personal tracker. AfriPath never
+  // submits applications — that always happens on the official site.
+  const handleTrackOpportunity = (opportunity: Opportunity) => {
+    const alreadyTracked = activeTracks.some((t) => t.opportunityTitle === opportunity.title);
     if (!alreadyTracked) {
       const newTrack: ActiveTrack = {
         id: `track-${Date.now()}`,
@@ -595,15 +681,14 @@ export default function App() {
         type: opportunity.type,
         currentPhase: 1,
         totalPhases: 4,
-        phases: ["Profile Verified", "Document Review", "Biometrics Dispatch", "Visa Issued"],
+        phases: ["Documents prepared", "Submitted on official site", "Awaiting decision", "Outcome recorded"],
         lastUpdated: "Just now"
       };
       setActiveTracks((prev) => [newTrack, ...prev]);
     }
-    
-    // Add notification
+
     setNotifications((prev) => [
-      `Applied successfully to: ${opportunity.title}! Active track initialized.`,
+      `Now tracking: ${opportunity.title}. Apply on the official site, then update your progress here.`,
       ...prev
     ]);
 
@@ -611,10 +696,10 @@ export default function App() {
       sourceId: opportunity.id,
       title: opportunity.title,
       category: "Opportunity",
-      status: "Applied",
+      status: "Tracked",
     });
 
-    triggerSuccessAlert("Application submitted. Track generated.");
+    triggerSuccessAlert("Added to your application tracker.");
   };
 
   // Create manual track
@@ -697,7 +782,54 @@ export default function App() {
     setSelectedRegion("All");
     setSelectedFields([]);
     setActiveTab("search");
-    triggerSuccessAlert(`Filtered stream for academic ${categoryType}s! 🎓`);
+    triggerSuccessAlert(`Showing ${categoryType} opportunities.`);
+  };
+
+  const handleVersionTap = () => {
+    const next = devTapCount + 1;
+    if (next >= DEV_MODE_TAP_TARGET) {
+      setDevTapCount(0);
+      setDevMode((value) => {
+        triggerSuccessAlert(value ? "Developer tools hidden." : "Developer tools enabled.");
+        return !value;
+      });
+      return;
+    }
+    setDevTapCount(next);
+  };
+
+  const handleSaveProfileName = () => {
+    const trimmed = profileNameDraft.trim();
+    if (!trimmed) return;
+    setUser((prev) => ({ ...prev, name: trimmed }));
+    setShowProfileMenu(false);
+    triggerSuccessAlert("Profile name updated.");
+  };
+
+  // Keep the hardware back button handler in sync with the latest UI state.
+  backNavStateRef.current = {
+    closeOverlay: () => {
+      if (showNotifications) {
+        setShowNotifications(false);
+        return true;
+      }
+      if (showProfileMenu) {
+        setShowProfileMenu(false);
+        return true;
+      }
+      if (showAddTrackModal) {
+        setShowAddTrackModal(false);
+        return true;
+      }
+      return false;
+    },
+    hasDetail: selectedOpportunity !== null,
+    clearDetail: () => {
+      setSelectedOpportunity(null);
+      setActiveTab(lastTab);
+    },
+    isHome: activeTab === "home",
+    goHome: () => setActiveTab("home"),
   };
 
   return (
@@ -732,67 +864,77 @@ export default function App() {
 
         <div className="flex items-center gap-3 relative">
           <button
-            onClick={() => setShowProfileMenu(!showProfileMenu)}
-            title="Switch active user"
-            className="hidden sm:flex w-9 h-9 rounded-full overflow-hidden bg-white/10 p-0.5 border border-white/20 hover:border-[#ffb690]/60 transition-colors"
+            onClick={() => {
+              setProfileNameDraft(user.name);
+              setShowProfileMenu(!showProfileMenu);
+            }}
+            title="Edit your profile"
+            aria-label="Edit your profile"
+            className="hidden sm:flex w-9 h-9 rounded-full bg-white/10 border border-white/20 hover:border-[#ffb690]/60 transition-colors items-center justify-center text-[#ffdbca] font-bold text-sm"
           >
-            <img
-              src={user.avatarUrl}
-              alt="User profile avatar"
-              className="w-full h-full object-cover rounded-full"
-              referrerPolicy="no-referrer"
-            />
+            {user.name.trim().charAt(0).toUpperCase() || "A"}
           </button>
 
-          <a
-            href={APP_URL}
-            target="_blank"
-            rel="noreferrer"
-            title="Open hosted AfriPath app"
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full border border-[#ffb690]/30 bg-white/10 text-[#ffdbca] hover:bg-white/15 hover:text-white transition-colors text-[10px] font-mono font-bold uppercase tracking-wider"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span>Live</span>
-          </a>
+          {devMode && (
+            <a
+              href={APP_URL}
+              target="_blank"
+              rel="noreferrer"
+              title="Open hosted AfriPath app"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full border border-[#ffb690]/30 bg-white/10 text-[#ffdbca] hover:bg-white/15 hover:text-white transition-colors text-[10px] font-mono font-bold uppercase tracking-wider"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>Live</span>
+            </a>
+          )}
 
           {/* Notifications Trigger */}
           <button
             onClick={() => setShowNotifications(!showNotifications)}
+            aria-label="Notifications"
             className="p-2 text-slate-300 rounded-full hover:bg-white/10 transition-colors relative cursor-pointer"
           >
             <Bell className="w-5 h-5 text-[#ffb690]" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#fd761a] rounded-full glow-cyan"></span>
+            {notifications.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#fd761a] rounded-full glow-cyan"></span>
+            )}
           </button>
 
-          {/* Profile Switcher Menu */}
+          {/* Local Profile Editor */}
           <AnimatePresence>
             {showProfileMenu && (
-              <div className="absolute right-0 top-12 bg-[#0b0c16]/95 backdrop-blur-md rounded-2xl shadow-2xl border border-white/15 py-3 w-52 z-50">
+              <div className="absolute right-0 top-12 bg-[#0b0c16]/95 backdrop-blur-md rounded-2xl shadow-2xl border border-white/15 py-3 w-64 z-50">
                 <p className="text-[10px] font-bold text-cyan-400 font-mono uppercase tracking-widest px-4 py-1.5">
-                  Switch Active User
+                  Your Profile
                 </p>
-                {USER_PROFILES.map((p, idx) => (
+                <div className="px-4 py-2 space-y-2">
+                  <label className="block text-[10px] text-slate-400 font-mono uppercase tracking-wider" htmlFor="profile-name">
+                    Display name
+                  </label>
+                  <input
+                    id="profile-name"
+                    value={profileNameDraft}
+                    onChange={(event) => setProfileNameDraft(event.target.value)}
+                    maxLength={40}
+                    className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-400/60"
+                  />
                   <button
-                    key={idx}
-                    onClick={() => {
-                      setCurrentUserIdx(idx);
-                      setShowProfileMenu(false);
-                      triggerSuccessAlert(`Switched identity successfully to ${p.name}!`);
-                    }}
-                    className="w-full px-4 py-2 text-left hover:bg-white/10 flex items-center gap-2.5 text-xs text-slate-200 border-b border-white/5 last:border-0"
+                    onClick={handleSaveProfileName}
+                    className="w-full px-3 py-2 bg-cyan-500 text-black rounded-lg text-xs font-bold hover:bg-cyan-400 transition-colors"
                   >
-                    <img 
-                      src={p.avatarUrl} 
-                      className="w-6 h-6 rounded-full object-cover bg-white/10" 
-                      alt={p.name}
-                      referrerPolicy="no-referrer"
-                    />
-                    <div>
-                      <p className="font-bold text-slate-250">{p.name}</p>
-                      <p className="text-[10px] text-slate-400 truncate w-32">{p.email}</p>
-                    </div>
+                    Save
                   </button>
-                ))}
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    Stored only on this device. AfriPath has no accounts.
+                  </p>
+                </div>
+                <button
+                  onClick={handleVersionTap}
+                  className="w-full px-4 pt-2 text-left text-[10px] font-mono text-slate-500 border-t border-white/5 select-none"
+                >
+                  AfriPath v{APP_VERSION}
+                  {devMode ? " · dev tools on" : ""}
+                </button>
               </div>
             )}
           </AnimatePresence>
@@ -846,8 +988,11 @@ export default function App() {
                   setActiveTab(lastTab);
                 }}
                 isSaved={savedIds.includes(selectedOpportunity.id)}
+                isTracked={applicationRecords.some(
+                  (record) => record.category === "Opportunity" && record.sourceId === selectedOpportunity.id,
+                )}
                 onToggleSave={(id) => handleToggleSave(id)}
-                onApplySuccess={handleApplySuccess}
+                onTrack={handleTrackOpportunity}
                 relatedOpportunities={opportunities.filter(
                   (opp) => opp.id !== selectedOpportunity.id
                 ).slice(0, 2)}
@@ -914,16 +1059,22 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="relative min-h-[220px] bg-[#131b2e]">
-                      <video
-                        src={AFRIPATH_3D_INTRO_SRC}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        poster={AFRIPATH_LOGO_SRC}
+                    <div className="relative min-h-[220px] bg-[#131b2e] overflow-hidden">
+                      <div
+                        className="absolute inset-0 opacity-40"
+                        style={{
+                          backgroundImage:
+                            "radial-gradient(circle at 20% 20%, rgba(253,118,26,0.35), transparent 45%), radial-gradient(circle at 80% 70%, rgba(34,211,238,0.25), transparent 50%)",
+                        }}
                       />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <img
+                          src={AFRIPATH_LOGO_SRC}
+                          alt=""
+                          aria-hidden="true"
+                          className="w-32 h-32 rounded-3xl object-cover shadow-2xl border border-white/20"
+                        />
+                      </div>
                       <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-[#0b1c30]/80 to-transparent">
                         <div className="flex flex-wrap items-center gap-2">
                           {["Opportunities", "Guidance", "Global Impact"].map((item) => (
@@ -947,7 +1098,7 @@ export default function App() {
                           Personalized Path
                         </div>
                         <h2 className="text-lg font-bold font-headline text-[#0b1c30]">
-                          {topMatchedOpportunities[0] ? matchInsights[topMatchedOpportunities[0].id].score : 0}% top match confidence
+                          {topMatchedOpportunities[0] ? matchInsights[topMatchedOpportunities[0].id].score : 0}% top relevance score
                         </h2>
                         <p className="text-xs text-[#45464d] max-w-2xl">
                           Tuned for a {preferences.passportCountry} passport, {preferences.studyField} background, {preferences.destinationRegion} destination preference, and {preferences.opportunityGoal.toLowerCase()} goal.
@@ -1258,7 +1409,7 @@ export default function App() {
 
                   {/* Active track widget stepper */}
                   <section className="space-y-3">
-                    <h2 className="text-lg font-bold text-[#0b1c30]">My Benchmarks</h2>
+                    <h2 className="text-lg font-bold text-[#0b1c30]">My Application Tracker</h2>
                     <div className="space-y-4">
                       {activeTracks.map((track) => (
                         <ActiveTrackWidget
@@ -1270,9 +1421,9 @@ export default function App() {
                     </div>
                   </section>
 
-                  {/* Visual Biometrics Queue Tracker (Exposed Integration) */}
+                  {/* Self-reported visa journey planner */}
                   <section className="space-y-3">
-                    <h2 className="text-lg font-bold text-slate-100">Live Consulate Biometric Queue</h2>
+                    <h2 className="text-lg font-bold text-slate-100">Visa Journey Planner</h2>
                     <VisaProgressTracker />
                   </section>
                 </div>
@@ -1653,7 +1804,7 @@ export default function App() {
                                           type: "Visa Sponsor Job",
                                           currentPhase: 1,
                                           totalPhases: 4,
-                                          phases: ["Application Lodged", "Pre-selection Interview", "COS Certificate Issued", "Visa Approved & Onboard"],
+                                          phases: ["Role researched", "Applied on job board", "Interview process", "Outcome recorded"],
                                           lastUpdated: "Just now"
                                         };
                                         setActiveTracks((prev) => [newTrack, ...prev]);
@@ -1664,7 +1815,7 @@ export default function App() {
                                         category: "Sponsored Job",
                                         status: "Tracked",
                                       });
-                                      triggerSuccessAlert(`Pipeline tracker generated and added to 'My Benchmarks' on your home screen!`);
+                                      triggerSuccessAlert("Added to your tracker. Apply through the official job board link.");
                                     }}
                                     className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-455 text-black text-[10px] font-mono rounded-lg font-bold tracking-wide"
                                   >
@@ -1709,7 +1860,7 @@ export default function App() {
                                   type: "Corporate Sponsorship",
                                   currentPhase: 1,
                                   totalPhases: 4,
-                                  phases: ["CV Received", "Initial Vetting", "Sponsorship Issued", "Visa Cleared"],
+                                  phases: ["Role researched", "Applied via employer", "Interview process", "Outcome recorded"],
                                   lastUpdated: "Just now"
                                 };
                                 setActiveTracks(prev => [newTrack, ...prev]);
@@ -1718,9 +1869,9 @@ export default function App() {
                                 sourceId: trackTitle,
                                 title: trackTitle,
                                 category: "Corporate Role",
-                                status: "Applied",
+                                status: "Tracked",
                               });
-                              triggerSuccessAlert(`C.V. successfully dispatched! Sponsorship pipeline initiated.`);
+                              triggerSuccessAlert("Role added to your tracker. Apply through the employer's official channel.");
                             }}
                           />
                         </div>
@@ -1958,7 +2109,7 @@ export default function App() {
                                               type: "Visa Sponsor",
                                               currentPhase: 1,
                                               totalPhases: 4,
-                                              phases: ["Pre-evaluation Score", "Formal Application", "Vetting Stage", "Visa Granted"],
+                                              phases: ["Eligibility checked", "Applied on official portal", "Awaiting decision", "Outcome recorded"],
                                               lastUpdated: "Just now"
                                             };
                                             setActiveTracks((prev) => [newTrack, ...prev]);
@@ -1969,7 +2120,7 @@ export default function App() {
                                             category: "Visa Program",
                                             status: "Tracked",
                                           });
-                                          triggerSuccessAlert("Generated custom 4-phase program roadmap under homepage Benchmarks Tracking.");
+                                          triggerSuccessAlert("Program added to your tracker on the home screen.");
                                         }}
                                         className="px-3.5 py-2 bg-white/5 hover:bg-white/15 text-slate-100 rounded-xl text-xs font-mono font-bold text-center border border-white/10"
                                       >
@@ -2466,6 +2617,8 @@ export default function App() {
                     </div>
                   </section>
 
+                  {/* Internal curation + sync tooling — hidden unless dev mode is enabled */}
+                  {devMode && (
                   <section className="glass-panel rounded-3xl p-5 space-y-5">
                     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                       <div>
@@ -2723,6 +2876,7 @@ export default function App() {
                       </div>
                     </div>
                   </section>
+                  )}
 
                   {applicationRecords.length === 0 ? (
                     <section className="glass-panel rounded-3xl p-8 text-center space-y-4">
@@ -2732,7 +2886,7 @@ export default function App() {
                       <div>
                         <h3 className="text-lg font-bold text-[#0b1c30]">No application records yet</h3>
                         <p className="text-sm text-[#45464d] mt-1">
-                          Apply to an opportunity or track a sponsored pathway to populate this command center.
+                          Track an opportunity or a sponsored pathway to populate this command center.
                         </p>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3 justify-center">

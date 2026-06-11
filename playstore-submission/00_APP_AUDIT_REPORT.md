@@ -1,6 +1,7 @@
 # AfriPath Google Play Closed Testing Audit Report
 
 Prepared: June 10, 2026
+Updated: June 11, 2026 (v1.1.0 trust/policy hardening pass)
 
 ## Repository Summary
 
@@ -8,8 +9,8 @@ Prepared: June 10, 2026
 - Developer/company: NDN Analytics
 - Framework: React + Vite wrapped with Capacitor Android
 - Android package: `com.ndnanalytics.afripath`
-- Version prepared for closed testing: `1.0.1`
-- Android versionCode prepared for closed testing: `2`
+- Version prepared for closed testing: `1.1.0`
+- Android versionCode prepared for closed testing: `3`
 - Android project: `android/`
 - Web build output: `dist/`
 - App category recommendation: Education
@@ -25,6 +26,8 @@ Prepared: June 10, 2026
 - `compileSdk`: 36
 - Permissions: `android.permission.INTERNET`
 - Release debuggable: not enabled in `android/app/build.gradle`
+- Release minification: R8 + resource shrinking enabled
+- Capacitor plugins: app, preferences, splash-screen, status-bar
 - Release signing: local upload key exists outside git in `app-store/signing/`
 
 ## App Behavior Audit
@@ -43,7 +46,14 @@ Prepared: June 10, 2026
 
 ## Data Handling
 
-The app stores user preferences, saved opportunities, tracked applications, readiness checklist selections, curation leads, and export snapshots in local app/browser storage. Optional backend sync can send a signed-off snapshot to the configured backend endpoint if the user/developer triggers it.
+The app stores user preferences, a local display name, saved opportunities, tracked applications, readiness checklist selections, curation leads, and export snapshots in local app storage (localStorage mirrored to native Preferences). No personal data leaves the device: the in-app "apply" form that previously collected name/email/phone was removed in v1.1.0 — applications happen on official external sites, and the app only keeps a self-managed tracker. The admin snapshot sync endpoint is disabled server-side unless a sync key is configured, and the admin tooling is hidden behind a developer mode.
+
+## v1.1.0 Trust & Policy Changes
+
+- Removed the simulated application form (collected PII with no real submission) — replaced with "Apply on Official Site" deep links plus a local tracker.
+- Removed fabricated UI: fake notifications, pre-seeded visa tracks, "Live Consulate Biometric Queue" (now a self-reported "Visa Journey Planner" with an explicit not-connected-to-government disclaimer), "Visa Issued"/"CV Received" phase claims, and the demo profile switcher containing hardcoded email addresses.
+- Relabeled match scores as relevance heuristics and removed the artificial score floor.
+- App fetches catalog updates from the hosted deployment at launch and falls back to the bundled catalog offline.
 
 ## Security And Secret Scan
 
@@ -67,7 +77,7 @@ No committed secret patterns were found in the app files scanned outside ignored
 - [x] Full description prepared
 - [x] Category recommendation prepared
 - [x] Independent-app disclaimer included
-- [ ] Support email finalized in Play Console: NEEDS USER INPUT
+- [x] Support email finalized: nkefua@ndnanalytics.com (enter it in Play Console store listing)
 - [ ] Privacy policy URL live after deployment: NEEDS MANUAL VERIFICATION
 
 ## Assets

@@ -15,10 +15,12 @@ export const backendSync = {
     const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
+      const syncKey = import.meta.env.VITE_AFRIPATH_SYNC_KEY ?? "";
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(syncKey ? { "X-AfriPath-Sync-Key": syncKey } : {}),
         },
         body: JSON.stringify(snapshot),
         signal: controller.signal,

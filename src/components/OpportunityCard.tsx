@@ -1,6 +1,7 @@
 import React from "react";
 import { MatchInsight, Opportunity } from "../types";
 import { MapPin, Calendar, Bookmark, ShieldCheck } from "lucide-react";
+import { SmartImage } from "./SmartImage";
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
@@ -28,11 +29,10 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         className="min-w-[280px] w-[280px] glass-panel rounded-2xl overflow-hidden flex-shrink-0 group cursor-pointer hover:border-[#ffb690] hover:shadow-[0_18px_38px_rgba(19,27,46,0.12)] transition-all duration-300 transform active:scale-98"
       >
         <div className="h-40 relative overflow-hidden bg-[#dce9ff]">
-          <img
+          <SmartImage
             src={opportunity.imageUrl}
             alt={opportunity.title}
             className="w-full h-full object-cover group-hover:scale-105 opacity-95 group-hover:opacity-100 transition-all duration-500"
-            referrerPolicy="no-referrer"
           />
           <div className="absolute top-3 right-3 bg-[#ffdf9f] text-[#261a00] border border-[#f9bd22]/40 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-xs backdrop-blur-md">
             {opportunity.badge}
@@ -100,11 +100,10 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         className="relative h-48 cursor-pointer overflow-hidden bg-[#dce9ff]"
         onClick={onClick}
       >
-        <img
+        <SmartImage
           src={opportunity.imageUrl}
           alt={opportunity.title}
           className="w-full h-full object-cover group-hover:scale-102 opacity-95 group-hover:opacity-100 transition-all duration-500"
-          referrerPolicy="no-referrer"
         />
         {/* Badges */}
         <span className="absolute top-3 right-3 bg-[#ffdf9f] text-[#261a00] border border-[#f9bd22]/40 px-3 py-1 rounded-full text-[11px] font-bold shadow-xs backdrop-blur-md">

@@ -1,6 +1,7 @@
 node_modules/
 build/
 dist/
+public/api/catalog.json
 coverage/
 .DS_Store
 *.log

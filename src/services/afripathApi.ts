@@ -7,6 +7,8 @@ import {
   Opportunity,
   OpportunityCurationLead,
 } from "../types";
+import { buildBackendUrl } from "../config";
+import { storage } from "./storage";
 
 const APPLICATION_RECORDS_KEY = "afripath_application_records";
 const APPLICATION_TASKS_KEY = "afripath_application_tasks";
@@ -26,7 +28,46 @@ const FALLBACK_IMAGE_BY_TYPE: Partial<Record<Opportunity["type"], string>> = {
 const getFallbackImageUrl = (type: Opportunity["type"]) =>
   FALLBACK_IMAGE_BY_TYPE[type] ?? FALLBACK_IMAGE_BY_TYPE.School ?? "";
 
+const REMOTE_CATALOG_TIMEOUT_MS = 4000;
+
+// Remote-first catalog: the hosted app publishes /api/catalog.json at build
+// time, so installed apps see catalog updates without a store release. Any
+// failure (offline, CORS, bad payload) falls back to the bundled catalog.
+const fetchRemoteCatalog = async (): Promise<Omit<AfriPathDataset, "opportunities"> & { opportunities: Opportunity[] } | null> => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REMOTE_CATALOG_TIMEOUT_MS);
+    const response = await fetch(buildBackendUrl("/api/catalog.json"), {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (!Array.isArray(data?.opportunities) || data.opportunities.length === 0) return null;
+
+    return {
+      opportunities: data.opportunities,
+      directoryEntries: data.directoryEntries ?? [],
+      visaFreePrograms: data.visaFreePrograms ?? [],
+      visaSponsoredPrograms: data.visaSponsoredPrograms ?? [],
+      approvedSponsorCompanies: data.approvedSponsorCompanies ?? [],
+      approvedSponsorJobs: data.approvedSponsorJobs ?? [],
+    };
+  } catch {
+    return null;
+  }
+};
+
 const loadCatalogDataset = async (): Promise<AfriPathDataset> => {
+  const remote = await fetchRemoteCatalog();
+  if (remote) {
+    return {
+      ...remote,
+      opportunities: [...remote.opportunities, ...readCustomOpportunities()],
+    };
+  }
+
   const catalog = await import("../data");
 
   return {
@@ -42,7 +83,7 @@ const loadCatalogDataset = async (): Promise<AfriPathDataset> => {
 const delay = (duration = 180) => new Promise((resolve) => setTimeout(resolve, duration));
 
 const readApplicationRecords = (): ApplicationRecord[] => {
-  const raw = localStorage.getItem(APPLICATION_RECORDS_KEY);
+  const raw = storage.get(APPLICATION_RECORDS_KEY);
   if (!raw) return [];
 
   try {
@@ -53,11 +94,11 @@ const readApplicationRecords = (): ApplicationRecord[] => {
 };
 
 const writeApplicationRecords = (records: ApplicationRecord[]) => {
-  localStorage.setItem(APPLICATION_RECORDS_KEY, JSON.stringify(records));
+  storage.set(APPLICATION_RECORDS_KEY, JSON.stringify(records));
 };
 
 const readApplicationTasks = (): ApplicationTask[] => {
-  const raw = localStorage.getItem(APPLICATION_TASKS_KEY);
+  const raw = storage.get(APPLICATION_TASKS_KEY);
   if (!raw) return [];
 
   try {
@@ -68,11 +109,11 @@ const readApplicationTasks = (): ApplicationTask[] => {
 };
 
 const writeApplicationTasks = (tasks: ApplicationTask[]) => {
-  localStorage.setItem(APPLICATION_TASKS_KEY, JSON.stringify(tasks));
+  storage.set(APPLICATION_TASKS_KEY, JSON.stringify(tasks));
 };
 
 const readApplicationDocuments = (): ApplicationDocument[] => {
-  const raw = localStorage.getItem(APPLICATION_DOCUMENTS_KEY);
+  const raw = storage.get(APPLICATION_DOCUMENTS_KEY);
   if (!raw) return [];
 
   try {
@@ -83,7 +124,7 @@ const readApplicationDocuments = (): ApplicationDocument[] => {
 };
 
 const writeApplicationDocuments = (documents: ApplicationDocument[]) => {
-  localStorage.setItem(APPLICATION_DOCUMENTS_KEY, JSON.stringify(documents));
+  storage.set(APPLICATION_DOCUMENTS_KEY, JSON.stringify(documents));
 };
 
 const DEFAULT_APPLICANT_CREDENTIALS: ApplicantCredential[] = [
@@ -154,7 +195,7 @@ const DEFAULT_APPLICANT_CREDENTIALS: ApplicantCredential[] = [
 ];
 
 const readApplicantCredentials = (): ApplicantCredential[] => {
-  const raw = localStorage.getItem(APPLICANT_CREDENTIALS_KEY);
+  const raw = storage.get(APPLICANT_CREDENTIALS_KEY);
   if (!raw) return DEFAULT_APPLICANT_CREDENTIALS;
 
   try {
@@ -171,11 +212,11 @@ const readApplicantCredentials = (): ApplicantCredential[] => {
 };
 
 const writeApplicantCredentials = (credentials: ApplicantCredential[]) => {
-  localStorage.setItem(APPLICANT_CREDENTIALS_KEY, JSON.stringify(credentials));
+  storage.set(APPLICANT_CREDENTIALS_KEY, JSON.stringify(credentials));
 };
 
 const readCurationLeads = (): OpportunityCurationLead[] => {
-  const raw = localStorage.getItem(CURATION_LEADS_KEY);
+  const raw = storage.get(CURATION_LEADS_KEY);
   if (!raw) return [];
 
   try {
@@ -186,11 +227,11 @@ const readCurationLeads = (): OpportunityCurationLead[] => {
 };
 
 const writeCurationLeads = (leads: OpportunityCurationLead[]) => {
-  localStorage.setItem(CURATION_LEADS_KEY, JSON.stringify(leads));
+  storage.set(CURATION_LEADS_KEY, JSON.stringify(leads));
 };
 
 const readCustomOpportunities = (): Opportunity[] => {
-  const raw = localStorage.getItem(CUSTOM_OPPORTUNITIES_KEY);
+  const raw = storage.get(CUSTOM_OPPORTUNITIES_KEY);
   if (!raw) return [];
 
   try {
@@ -201,7 +242,7 @@ const readCustomOpportunities = (): Opportunity[] => {
 };
 
 const writeCustomOpportunities = (opportunities: Opportunity[]) => {
-  localStorage.setItem(CUSTOM_OPPORTUNITIES_KEY, JSON.stringify(opportunities));
+  storage.set(CUSTOM_OPPORTUNITIES_KEY, JSON.stringify(opportunities));
 };
 
 const slugify = (value: string) =>

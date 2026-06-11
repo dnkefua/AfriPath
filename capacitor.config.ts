@@ -12,6 +12,19 @@ const config: CapacitorConfig = {
     contentInset: "automatic",
     scrollEnabled: true,
   },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 1200,
+      launchAutoHide: true,
+      backgroundColor: "#131b2e",
+      androidScaleType: "CENTER_INSIDE",
+      showSpinner: false,
+    },
+    StatusBar: {
+      style: "DARK",
+      backgroundColor: "#131b2e",
+    },
+  },
 };
 
 export default config;
