@@ -17,8 +17,8 @@
 
 ## Privacy Policy
 
-- Privacy policy URL after deployment: `https://afripath--afripath.europe-west4.hosted.app/privacy.html`
-- Status: NEEDS MANUAL VERIFICATION after deployment.
+- Privacy policy URL: `https://afripath--afripath.europe-west4.hosted.app/privacy.html`
+- Status: VERIFIED LIVE (HTTP 200, current v1.1.0 text with support email) on June 12, 2026.
 
 ## Target Audience
 
@@ -48,8 +48,7 @@ The app provides educational/career opportunity information, application readine
 
 ## AI-Generated Content
 
-- User-facing AI-generated content: No active AI generation flow found in the app UI.
-- NEEDS VERIFICATION: remove unused AI dependency later if not needed.
+- User-facing AI-generated content: No. The unused `@google/genai` dependency was removed in v1.1.0; no AI SDK remains in the app.
 
 ## User-Generated Content
 

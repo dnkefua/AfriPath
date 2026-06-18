@@ -14,20 +14,17 @@
 - Icon: `playstore-submission/assets/icon-512.png`
 - Feature graphic: `playstore-submission/assets/feature-graphic-1024x500.png`
 
-## Recommended Phone Screenshots
+## Captured Phone Screenshots (1080x1920 PNG, real v1.1.0 UI)
 
-1. `playstore-submission/assets/screenshots/phone/01-home-dashboard-1080x1920.png`
-   - Show landing/home with vibrant brand, opportunity counts, and top matched opportunities.
-2. `playstore-submission/assets/screenshots/phone/02-opportunity-search-1080x1920.png`
-   - Show searchable opportunity cards with jobs, scholarships, and volunteer options.
-3. `playstore-submission/assets/screenshots/phone/03-opportunity-detail-1080x1920.png`
-   - Show source-backed details and international eligibility signals.
-4. `playstore-submission/assets/screenshots/phone/04-visa-hub-1080x1920.png`
-   - Show sponsored jobs or visa pathway comparison.
-5. `playstore-submission/assets/screenshots/phone/05-command-center-1080x1920.png`
-   - Show tasks, documents, readiness, and decision intelligence.
-6. `playstore-submission/assets/screenshots/phone/06-privacy-support-1080x1920.png`
-   - Show app footer/legal links or privacy/support page.
+1. `playstore-submission/assets/screenshots/phone/01-home.png` — home with brand hero, relevance score, profile summary.
+2. `playstore-submission/assets/screenshots/phone/02-search.png` — opportunity directory with filters and match cards.
+3. `playstore-submission/assets/screenshots/phone/03-opportunity-detail.png` — source-backed detail with eligibility criteria.
+4. `playstore-submission/assets/screenshots/phone/04-visa-hub.png` — sponsored jobs and visa pathway hub.
+5. `playstore-submission/assets/screenshots/phone/05-command-center.png` — tracker, tasks, document readiness vault.
+6. `playstore-submission/assets/screenshots/phone/06-saved.png` — saved bookmarks plus footer with privacy/support links and independent-app disclaimer.
+
+Regenerate at any time: `npm run preview`, then `node scripts/capture-screenshots.mjs`
+(the script fails if any screen logs a console error).
 
 ## Screenshot Rules
 
@@ -39,4 +36,4 @@
 
 ## Status
 
-NEEDS MANUAL ACTION if automated screenshots are not generated in this preparation pass.
+CAPTURED June 12, 2026 — six 1080x1920 phone PNGs of the real v1.1.0 production build. Ready to upload.

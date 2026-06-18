@@ -9,3 +9,4 @@ coverage/
 !.env.example
 app-store/builds/
 app-store/signing/
+playstore-submission/release/

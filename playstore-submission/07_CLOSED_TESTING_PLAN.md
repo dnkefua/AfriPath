@@ -23,7 +23,7 @@ Send testers the Play closed testing opt-in link and ask them to:
 4. Test Home, Search, opportunity detail pages, Visa Hub, Command Center, Saved, privacy, and support links.
 5. Save at least one opportunity and track one application workflow.
 6. Report any crashes, layout issues, broken links, confusing eligibility language, or missing opportunities.
-7. Submit feedback through Google Play private feedback or the developer feedback channel.
+7. Submit feedback through Google Play private feedback or by email to nkefua@ndnanalytics.com.
 
 ## Feedback Questions
 

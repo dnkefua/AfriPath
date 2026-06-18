@@ -78,14 +78,13 @@ No committed secret patterns were found in the app files scanned outside ignored
 - [x] Category recommendation prepared
 - [x] Independent-app disclaimer included
 - [x] Support email finalized: nkefua@ndnanalytics.com (enter it in Play Console store listing)
-- [ ] Privacy policy URL live after deployment: NEEDS MANUAL VERIFICATION
+- [x] Privacy policy URL live: verified HTTP 200 with v1.1.0 text on June 12, 2026
 
 ## Assets
 
 - [x] 512 x 512 icon export prepared
 - [x] 1024 x 500 feature graphic prepared
-- [ ] Minimum 2 screenshots uploaded: NEEDS MANUAL ACTION if automated capture is not completed
-- [ ] Recommended 6 phone screenshots uploaded: NEEDS MANUAL ACTION if automated capture is not completed
+- [x] Six 1080x1920 phone screenshots captured from real v1.1.0 UI (playstore-submission/assets/screenshots/phone) — upload in Play Console
 
 ## App Content
 
@@ -110,6 +109,13 @@ No committed secret patterns were found in the app files scanned outside ignored
 - [ ] 20-30 testers recruited, minimum 12 opted-in testers required for production access: NEEDS MANUAL ACTION
 - [ ] Testers remain opted in for at least 14 continuous days: NEEDS MANUAL ACTION
 
+## Release Artifact (v1.1.0 / versionCode 3)
+
+- Signed AAB: `playstore-submission/release/app-v1.1.0-vc3.aab` (also `app-store/builds/AfriPath-1.1.0-3-signed.aab`)
+- Build command: `npm run build && npx cap sync android && android/gradlew bundleRelease` + jarsigner with the upload key
+- Signing status: verified (`jar verified`; self-signed upload cert chain warning is expected)
+- R8 minification + resource shrinking: enabled
+
 ## Submission Recommendation
 
-READY FOR CLOSED TESTING after Play Console manual setup, support email entry, privacy policy URL verification, and screenshot upload.
+READY FOR CLOSED TESTING. Remaining steps are Play Console actions only: upload AAB, paste listing copy, upload assets, complete declarations, create the closed track, and recruit testers (12+ opted in for 14 continuous days before requesting production access).
