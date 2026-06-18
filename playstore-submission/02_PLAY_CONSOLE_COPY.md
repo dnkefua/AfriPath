@@ -6,7 +6,9 @@ AfriPath
 
 ## Short Description
 
-Find scholarships, global jobs, volunteer paths, visa routes, and application readiness tools.
+(80-char limit — use this one, 78 chars)
+
+Scholarships, global jobs, volunteer paths & visa routes with readiness tools.
 
 ## Full Description
 
@@ -25,7 +27,7 @@ AfriPath does not guarantee admission, hiring, sponsorship, visa approval, fundi
 
 AfriPath is not affiliated with, endorsed by, or operated by any government agency, university, employer, scholarship provider, visa authority, or volunteer organization referenced in the app. External source links are provided for user verification.
 
-Privacy and control: this closed testing build does not require an account. Saved opportunities, preferences, readiness selections, and application tracking activity are stored locally on the user's device. Optional developer sync/export tools may be used during testing for app operations and curation review.
+Privacy and control: AfriPath does not require an account and collects no personal data. Your profile name, saved opportunities, preferences, readiness selections, and application tracking are stored only on your device.
 
 ## Release Notes - Closed Testing v1.1.0
 
