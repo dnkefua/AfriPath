@@ -174,6 +174,14 @@ Answer:
 https://afripath--afripath.europe-west4.hosted.app/support.html
 ```
 
+## Graphics
+
+For the exact Play Console upload paths and blank/optional video/tablet/Chromebook/XR answers, use:
+
+```text
+playstore-submission/12_GRAPHICS_UPLOAD_ANSWERS.md
+```
+
 ## App Access
 
 Question: Are any parts of your app restricted based on login credentials, memberships, location, or other authentication?

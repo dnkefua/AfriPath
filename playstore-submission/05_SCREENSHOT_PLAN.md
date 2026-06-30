@@ -2,17 +2,21 @@
 
 ## Required Play Store Assets
 
-- App icon: 512 x 512 PNG, no alpha.
-- Feature graphic: 1024 x 500 PNG or JPEG, no alpha.
-- Screenshots: minimum 2 phone screenshots.
-- Recommended app set: 6 phone screenshots, portrait 1080 x 1920.
-- Optional tablets: 4 screenshots for 7-inch and 10-inch tablets.
-- Optional Chromebook: 4 screenshots at 1920 x 1080.
+- App icon: 512 x 512 PNG or JPEG, up to 1 MB.
+- Feature graphic: 1024 x 500 PNG or JPEG, up to 15 MB.
+- Phone screenshots: upload 2-8 PNG/JPEG files, up to 8 MB each, 16:9 or 9:16, each side 320-3840 px.
+- Promotion-ready phone set: at least 4 screenshots with a minimum of 1080 px on each side.
+- 7-inch tablet screenshots: optional unless required by form-factor targeting; up to 8 screenshots, PNG/JPEG, up to 8 MB each, 16:9 or 9:16, each side 320-3840 px.
+- 10-inch tablet screenshots: optional unless required by form-factor targeting; up to 8 screenshots, PNG/JPEG, up to 8 MB each, 16:9 or 9:16, each side 1080-7680 px.
+- Chromebook screenshots: optional unless targeting Chromebook/promotion; upload 4-8 PNG/JPEG screenshots, 16:9 or 9:16, each side 1080-7680 px.
+- Android XR screenshots: not applicable for AfriPath; if used later, upload 4-8 PNG/JPEG screenshots, up to 15 MB each, 16:9 or 9:16, each side 720-7680 px.
+- Videos: optional YouTube URLs only; public or unlisted, ads off, not age restricted.
 
 ## Prepared Asset Paths
 
 - Icon: `playstore-submission/assets/icon-512.png`
 - Feature graphic: `playstore-submission/assets/feature-graphic-1024x500.png`
+- Exact upload answers: `playstore-submission/12_GRAPHICS_UPLOAD_ANSWERS.md`
 
 ## Captured Phone Screenshots (1080x1920 PNG, real v1.1.0 UI)
 
