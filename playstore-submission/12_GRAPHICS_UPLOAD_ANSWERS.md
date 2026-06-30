@@ -69,28 +69,38 @@ All six screenshots are PNG, 1080 x 1920 px, 9:16 portrait, and under 8 MB each.
 
 Question: 7-inch tablet screenshots
 
-Answer:
+Upload these six files:
 ```text
-Leave blank for this closed-testing submission unless Play Console requires tablet graphics for your selected device form factors.
+playstore-submission/assets/screenshots/tablet-7/01-home.png
+playstore-submission/assets/screenshots/tablet-7/02-search.png
+playstore-submission/assets/screenshots/tablet-7/03-opportunity-detail.png
+playstore-submission/assets/screenshots/tablet-7/04-visa-hub.png
+playstore-submission/assets/screenshots/tablet-7/05-command-center.png
+playstore-submission/assets/screenshots/tablet-7/06-saved.png
 ```
 
-Status:
+Validation:
 ```text
-No 7-inch tablet screenshots are currently prepared in playstore-submission/assets/screenshots/tablet-7.
+All six files are PNG, 1080 x 1920 px, 9:16 portrait, and under 8 MB each. They meet the 7-inch tablet screenshot limits.
 ```
 
 ## 10-Inch Tablet Screenshots
 
 Question: 10-inch tablet screenshots
 
-Answer:
+Upload these six files:
 ```text
-Leave blank for this closed-testing submission unless Play Console requires tablet graphics for your selected device form factors.
+playstore-submission/assets/screenshots/tablet-10/01-home.png
+playstore-submission/assets/screenshots/tablet-10/02-search.png
+playstore-submission/assets/screenshots/tablet-10/03-opportunity-detail.png
+playstore-submission/assets/screenshots/tablet-10/04-visa-hub.png
+playstore-submission/assets/screenshots/tablet-10/05-command-center.png
+playstore-submission/assets/screenshots/tablet-10/06-saved.png
 ```
 
-Status:
+Validation:
 ```text
-No 10-inch tablet screenshots are currently prepared in playstore-submission/assets/screenshots/tablet-10.
+All six files are PNG, 1080 x 1920 px, 9:16 portrait, and under 8 MB each. They meet the 10-inch tablet screenshot limits.
 ```
 
 ## Chromebook Screenshots
@@ -144,9 +154,9 @@ Leave blank. AfriPath is not being promoted as an Android XR app and no non-spat
 - [x] App icon ready.
 - [x] Feature graphic ready.
 - [x] Six phone screenshots ready.
+- [x] Six 7-inch tablet screenshots ready.
+- [x] Six 10-inch tablet screenshots ready.
 - [ ] YouTube preview video: optional, not provided.
-- [ ] 7-inch tablet screenshots: optional/not provided.
-- [ ] 10-inch tablet screenshots: optional/not provided.
 - [ ] Chromebook screenshots: optional/not provided.
 - [ ] Android XR screenshots: not applicable.
 - [ ] Spatial XR video: not applicable.
