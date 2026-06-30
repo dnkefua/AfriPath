@@ -1,5 +1,19 @@
 # App Content Declarations
 
+This file summarizes AfriPath's App content declarations. For exact Play Console copy/paste answers for the 9 declarations currently shown in Play Console, use `playstore-submission/11_APP_CONTENT_DECLARATION_ANSWERS.md`.
+
+## Current Play Console Declarations That Need Attention
+
+1. Privacy policy: provide `https://afripath--afripath.europe-west4.hosted.app/privacy.html`.
+2. Ads: answer `No`.
+3. Sign-in details: answer no restricted access; no login required.
+4. Content ratings: complete as an educational/reference app with no mature content, user interaction, purchases, gambling, or unrestricted internet access.
+5. Target audience and content: answer `18 and over`; not designed for children.
+6. Data safety: answer no collection/sharing of required user data types for this closed-testing build.
+7. Advertising ID: answer `No`; no AD_ID permission, ads, analytics, or attribution SDKs.
+8. Government apps: answer not a government app; independent app with official source links where government/visa information is referenced.
+9. Health apps: answer no health features; healthcare-field opportunities are informational listings only.
+
 ## App Access
 
 - Does the app require login? No.
@@ -11,6 +25,12 @@
 
 - Contains ads: No.
 - Ad SDK found: No.
+
+## Advertising ID
+
+- Uses Advertising ID: No.
+- AD_ID permission declared: No.
+- Ads, analytics, attribution SDKs: none found.
 
 ## In-App Purchases
 

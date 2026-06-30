@@ -91,6 +91,7 @@ No committed secret patterns were found in the app files scanned outside ignored
 
 - [x] App access documented
 - [x] Ads declaration documented
+- [x] Advertising ID declaration documented
 - [x] Target audience draft documented
 - [x] Government-app declaration draft documented
 - [x] Data Safety worksheet drafted

@@ -190,6 +190,14 @@ Answer:
 No login is required. Open AfriPath and test Home, Search, opportunity details, official source links, Saved, Visa Hub, Command Center, privacy, and support pages. The app is an independent opportunity discovery and readiness tool from NDN ANALYTICS INC.
 ```
 
+## 9 App Content Declarations Needing Attention
+
+For the exact Play Console answers to Privacy policy, Ads, Sign-in details, Content ratings, Target audience and content, Data safety, Advertising ID, Government apps, and Health apps, use:
+
+```text
+playstore-submission/11_APP_CONTENT_DECLARATION_ANSWERS.md
+```
+
 ## Ads
 
 Question: Does your app contain ads?
