@@ -1,5 +1,9 @@
 # Reviewer Access Instructions
 
+Developer: NDN ANALYTICS INC.
+
+Android package: `com.ndnanalyticsinc.afripath`
+
 ## Access
 
 No login is required.
@@ -30,4 +34,4 @@ nkefua@ndnanalytics.com
 
 ## Notes For Review
 
-AfriPath is an independent app. It is not affiliated with, endorsed by, or operated by any government agency, visa authority, regulator, university, employer, scholarship provider, or volunteer organization.
+AfriPath is an independent app from NDN ANALYTICS INC. It is not affiliated with, endorsed by, or operated by any government agency, visa authority, regulator, university, employer, scholarship provider, or volunteer organization.

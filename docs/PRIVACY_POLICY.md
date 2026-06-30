@@ -2,7 +2,7 @@
 
 Last updated: June 10, 2026
 
-AfriPath is an opportunity discovery and application-readiness app by NDN Analytics. This private testing build helps users review scholarships, curated international jobs, volunteer placements, visa pathways, saved opportunities, application tasks, and readiness checklists.
+AfriPath is an opportunity discovery and application-readiness app by NDN ANALYTICS INC. This private testing build helps users review scholarships, curated international jobs, volunteer placements, visa pathways, saved opportunities, application tasks, and readiness checklists.
 
 ## Information Stored On Your Device
 
@@ -26,4 +26,4 @@ AfriPath is intended for applicants, students, professionals, researchers, and a
 
 ## Contact
 
-For privacy or support questions, contact NDN Analytics through https://www.ndnanalytics.com/.
+For privacy or support questions, contact NDN ANALYTICS INC. through https://www.ndnanalytics.com/.

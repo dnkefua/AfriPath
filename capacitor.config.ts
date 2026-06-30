@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.ndnanalytics.afripath",
+  appId: "com.ndnanalyticsinc.afripath",
   appName: "AfriPath",
   webDir: "dist",
   server: {

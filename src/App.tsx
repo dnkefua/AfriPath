@@ -247,7 +247,7 @@ export default function App() {
           <section className="mt-8 mb-4 rounded-2xl border border-[#d7e2dd] bg-white/75 px-4 py-3 text-xs text-[#45464d] shadow-sm">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p>
-                AfriPath is an independent opportunity discovery and readiness tool by NDN Analytics.
+                AfriPath is an independent opportunity discovery and readiness tool by NDN ANALYTICS INC.
               </p>
               <div className="flex flex-wrap items-center gap-3 font-semibold text-[#0b1c30]">
                 <a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer" className="hover:text-[#fd761a]">

@@ -1,4 +1,4 @@
-package com.ndnanalytics.afripath;
+package com.ndnanalyticsinc.afripath;
 
 import com.getcapacitor.BridgeActivity;
 

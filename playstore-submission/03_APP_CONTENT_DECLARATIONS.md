@@ -4,6 +4,8 @@
 
 - Does the app require login? No.
 - Reviewer instructions: Open the app and test the built-in demo/private testing experience. No credentials, OTP, location-specific access, or paid account are required.
+- Play developer account: Organization, NDN ANALYTICS INC.
+- Android package for organization listing: `com.ndnanalyticsinc.afripath`
 
 ## Ads
 
@@ -34,7 +36,7 @@ The app provides educational/career opportunity information, application readine
 
 - Is AfriPath a government app? No.
 - Does it reference government or regulator information? Yes, where opportunity or visa records link to official sources.
-- Declaration note: AfriPath is an independent app and is not affiliated with, endorsed by, or operated by any government agency, visa authority, regulator, university, employer, scholarship provider, or volunteer organization.
+- Declaration note: AfriPath is an independent app from NDN ANALYTICS INC. and is not affiliated with, endorsed by, or operated by any government agency, visa authority, regulator, university, employer, scholarship provider, or volunteer organization.
 
 ## Health Apps Declaration
 

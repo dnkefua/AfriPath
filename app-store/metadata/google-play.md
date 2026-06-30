@@ -2,9 +2,11 @@
 
 ## Version
 
-- Version name: `1.0.1`
-- Version code: `2`
+- Version name: `1.1.0`
+- Version code: `1`
 - Track: Closed testing
+- Developer: `NDN ANALYTICS INC.`
+- Package: `com.ndnanalyticsinc.afripath`
 
 ## App Name
 

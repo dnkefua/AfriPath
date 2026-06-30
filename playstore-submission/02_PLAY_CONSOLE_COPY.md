@@ -12,7 +12,7 @@ Scholarships, global jobs, volunteer paths & visa routes with readiness tools.
 
 ## Full Description
 
-AfriPath is an independent opportunity discovery and application-readiness platform for people preparing global scholarships, curated international hiring pathways, volunteer placements, sponsor-backed roles, and visa-supported mobility routes.
+AfriPath is an independent opportunity discovery and application-readiness platform from NDN ANALYTICS INC. for people preparing global scholarships, curated international hiring pathways, volunteer placements, sponsor-backed roles, and visa-supported mobility routes.
 
 Use AfriPath to:
 
@@ -25,7 +25,7 @@ Use AfriPath to:
 
 AfriPath does not guarantee admission, hiring, sponsorship, visa approval, funding, or placement. Opportunity requirements can change, so users should always confirm details on the official source page before applying.
 
-AfriPath is not affiliated with, endorsed by, or operated by any government agency, university, employer, scholarship provider, visa authority, or volunteer organization referenced in the app. External source links are provided for user verification.
+AfriPath and NDN ANALYTICS INC. are not affiliated with, endorsed by, or operated by any government agency, university, employer, scholarship provider, visa authority, or volunteer organization referenced in the app. External source links are provided for user verification.
 
 Privacy and control: AfriPath does not require an account and collects no personal data. Your profile name, saved opportunities, preferences, readiness selections, and application tracking are stored only on your device.
 
@@ -50,6 +50,10 @@ AfriPath v1.1.0 closed testing release:
 ## Support Email
 
 nkefua@ndnanalytics.com (backup contact: nkefuan@yahoo.com)
+
+## Developer Name
+
+NDN ANALYTICS INC.
 
 ## Support URL
 

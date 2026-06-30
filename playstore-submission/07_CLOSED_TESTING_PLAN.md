@@ -3,9 +3,12 @@
 ## Track
 
 - Track type: Google Play Closed testing
+- Developer account type: Organization
+- Developer name: NDN ANALYTICS INC.
+- Android package: `com.ndnanalyticsinc.afripath`
 - Recommended tester recruitment target: 20-30 testers
-- Minimum for production access on newer personal developer accounts: 12 opted-in testers
-- Minimum opt-in duration before production access request: 14 continuous days
+- Google-documented production-access gate: newer personal developer accounts must run a closed test with at least 12 opted-in testers for 14 continuous days.
+- Organization-account operating target: still recruit 20-30 testers and keep at least 12 opted in for 14 continuous days so NDN ANALYTICS INC. has production-readiness evidence if Play Console requests it.
 
 ## Tester Group Setup
 
@@ -45,6 +48,7 @@ Send testers the Play closed testing opt-in link and ask them to:
 - Summary of feedback themes.
 - Bug fixes or UX improvements made from tester feedback.
 - Crash/pre-launch report notes.
+- Organization identity verification status in Play Console.
 
 ## Production Access Draft Answer
 

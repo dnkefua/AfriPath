@@ -5,12 +5,13 @@ AfriPath is prepared for Google Play private testing through Capacitor Android.
 ## Local Project
 
 - App name: `AfriPath`
-- Package name: `com.ndnanalytics.afripath`
+- Developer: `NDN ANALYTICS INC.`
+- Package name: `com.ndnanalyticsinc.afripath`
 - Android project: `android`
 - Web output: `dist`
 - Capacitor config: `capacitor.config.ts`
-- Version name: `1.0.1`
-- Version code: `2`
+- Version name: `1.1.0`
+- Version code: `1` for the organization package
 
 ## Build Commands
 
@@ -28,8 +29,8 @@ npm run android:open
 
 1. Open the `android` folder in Android Studio.
 2. Let Gradle sync finish.
-3. Confirm package name `com.ndnanalytics.afripath`.
-4. Confirm version code `2` and version name `1.0.1`.
+3. Confirm package name `com.ndnanalyticsinc.afripath`.
+4. Confirm version code `1` and version name `1.1.0` for the organization package.
 5. Create or select a release signing key.
 6. Build a signed Android App Bundle:
    - `Build > Generate Signed Bundle / APK`
@@ -70,4 +71,4 @@ Recommended first path:
 
 - Google Play expects Android App Bundles (`.aab`) for new app uploads.
 - Final signed release build requires Android Studio or a configured Android SDK/Gradle environment.
-- If the app is from a new Play developer account, Google may require closed testing before production access.
+- Google documents the 12 opted-in testers for 14 continuous days gate for newer personal developer accounts. For NDN ANALYTICS INC. as an organization account, still collect equivalent closed-test evidence for production readiness.

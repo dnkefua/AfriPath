@@ -1,16 +1,17 @@
 # AfriPath Google Play Closed Testing Audit Report
 
 Prepared: June 10, 2026
-Updated: June 11, 2026 (v1.1.0 trust/policy hardening pass)
+Updated: June 30, 2026 (NDN ANALYTICS INC. organization closed-testing pass)
 
 ## Repository Summary
 
 - App name: AfriPath
-- Developer/company: NDN Analytics
+- Developer/company: NDN ANALYTICS INC.
+- Play developer account type: Organization
 - Framework: React + Vite wrapped with Capacitor Android
-- Android package: `com.ndnanalytics.afripath`
+- Android package: `com.ndnanalyticsinc.afripath`
 - Version prepared for closed testing: `1.1.0`
-- Android versionCode prepared for closed testing: `3`
+- Android versionCode prepared for closed testing: `1`
 - Android project: `android/`
 - Web build output: `dist/`
 - App category recommendation: Education
@@ -19,8 +20,8 @@ Updated: June 11, 2026 (v1.1.0 trust/policy hardening pass)
 
 ## Build Configuration
 
-- `applicationId`: `com.ndnanalytics.afripath`
-- `namespace`: `com.ndnanalytics.afripath`
+- `applicationId`: `com.ndnanalyticsinc.afripath`
+- `namespace`: `com.ndnanalyticsinc.afripath`
 - `minSdk`: 24
 - `targetSdk`: 36
 - `compileSdk`: 36
@@ -101,21 +102,24 @@ No committed secret patterns were found in the app files scanned outside ignored
 - [x] Support page accessible from app footer
 - [x] Independent-app disclaimer accessible from app footer
 
-## Closed Testing
+## Organization Closed Testing
 
 - [x] Closed testing plan prepared
+- [x] Organization developer name set to NDN ANALYTICS INC.
+- [x] Organization package name prepared as `com.ndnanalyticsinc.afripath`
 - [ ] Closed testing track created in Play Console: NEEDS MANUAL ACTION
 - [ ] Tester list or Google Group created: NEEDS MANUAL ACTION
-- [ ] 20-30 testers recruited, minimum 12 opted-in testers required for production access: NEEDS MANUAL ACTION
-- [ ] Testers remain opted in for at least 14 continuous days: NEEDS MANUAL ACTION
+- [ ] 20-30 testers recruited for organization closed testing: NEEDS MANUAL ACTION
+- [ ] Keep at least 12 testers opted in for 14 continuous days as conservative production-readiness evidence: NEEDS MANUAL ACTION
 
-## Release Artifact (v1.1.0 / versionCode 3)
+## Release Artifact (v1.1.0 / organization package versionCode 1)
 
-- Signed AAB: `playstore-submission/release/app-v1.1.0-vc3.aab` (also `app-store/builds/AfriPath-1.1.0-3-signed.aab`)
+- Signed AAB: `playstore-submission/release/app-v1.1.0-vc1-ndn-analytics-inc.aab` (also `app-store/builds/AfriPath-1.1.0-1-ndn-analytics-inc-signed.aab`)
+- SHA-256: `9FBC6434815A1252C31577C7D84B5420CEC17C48FF03717315AE90868DE271A6`
 - Build command: `npm run build && npx cap sync android && android/gradlew bundleRelease` + jarsigner with the upload key
-- Signing status: verified (`jar verified`; self-signed upload cert chain warning is expected)
+- Signing status: verified (`jar verified`; self-signed upload cert chain warning is expected before Play App Signing)
 - R8 minification + resource shrinking: enabled
 
 ## Submission Recommendation
 
-READY FOR CLOSED TESTING. Remaining steps are Play Console actions only: upload AAB, paste listing copy, upload assets, complete declarations, create the closed track, and recruit testers (12+ opted in for 14 continuous days before requesting production access).
+READY FOR ORGANIZATION CLOSED TESTING. Remaining steps are Play Console actions only: upload AAB, paste listing copy, upload assets, complete declarations, create the closed track, and recruit testers. The 12 opted-in testers for 14 continuous days rule is documented as a personal-account production-access requirement, but this organization package should still collect equivalent evidence for a cleaner production-readiness file.
