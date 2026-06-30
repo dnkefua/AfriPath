@@ -72,7 +72,80 @@ Question: Content rating questionnaire category
 
 Answer:
 ```text
-Reference, News, or Educational
+All Other App Types
+```
+
+Question: Does the app contain any ratings-relevant content (e.g., sex, violence, language) downloaded as part of the app package (code, assets)?
+
+Answer:
+```text
+No
+```
+
+Question: Does the app natively allow users to interact or exchange content with other users through voice communication, text, or sharing images or audio?
+
+Answer:
+```text
+No
+```
+
+Question: Does the app feature or promote content that isn't part of the initial app download, but can be accessed from the app? Examples of this type of content are movies in the Netflix app, product listings in the Amazon Shopping app, songs in the Spotify app, generated AI content, or news articles in the New York Times app.
+
+Answer:
+```text
+Yes
+```
+
+Explanation:
+```text
+AfriPath loads a public opportunity catalog and opens official external source links for scholarships, jobs, volunteer placements, sponsor information, and visa-related opportunity verification. The app does not provide streaming media, AI-generated content, social content, or news feeds.
+```
+
+Question: Does the app focus on promoting or selling items or activities that are typically age-restricted such as cigarettes, alcohol, firearms, or gambling?
+
+Answer:
+```text
+No
+```
+
+Question: Does the app share the user's current and precise physical location with other users?
+
+Answer:
+```text
+No
+```
+
+Question: Does the app allow users to purchase digital goods?
+
+Answer:
+```text
+No
+```
+
+Question: Does the app include cash rewards, gift cards, play-to-earn features, convertible cryptocurrency rewards, or the issuance of transferable digital assets (e.g., NFTs)?
+
+Answer:
+```text
+No
+```
+
+Question: Is the app a web browser or search engine?
+
+Answer:
+```text
+No
+```
+
+Question: Is the app primarily a news or educational product?
+
+Answer:
+```text
+Yes
+```
+
+Explanation:
+```text
+AfriPath is primarily an educational and career-readiness reference product for scholarships, global jobs, volunteer opportunities, visa routes, and application readiness.
 ```
 
 Question: Violence, blood, or gore

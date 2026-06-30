@@ -243,7 +243,56 @@ Question: App category for content rating questionnaire
 
 Answer:
 ```text
-Reference, News, or Educational
+All Other App Types
+```
+
+Question: Does the app contain any ratings-relevant content (e.g., sex, violence, language) downloaded as part of the app package (code, assets)?
+
+Answer:
+```text
+No
+```
+
+Question: Does the app natively allow users to interact or exchange content with other users through voice communication, text, or sharing images or audio?
+
+Answer:
+```text
+No
+```
+
+Question: Does the app feature or promote content that isn't part of the initial app download, but can be accessed from the app?
+
+Answer:
+```text
+Yes
+```
+
+Question: Does the app focus on promoting or selling items or activities that are typically age-restricted such as cigarettes, alcohol, firearms, or gambling?
+
+Answer:
+```text
+No
+```
+
+Question: Does the app include cash rewards, gift cards, play-to-earn features, convertible cryptocurrency rewards, or the issuance of transferable digital assets (e.g., NFTs)?
+
+Answer:
+```text
+No
+```
+
+Question: Is the app a web browser or search engine?
+
+Answer:
+```text
+No
+```
+
+Question: Is the app primarily a news or educational product?
+
+Answer:
+```text
+Yes
 ```
 
 Question: Does the app contain violence, blood, or gore?

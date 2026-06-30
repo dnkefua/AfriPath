@@ -7,7 +7,7 @@ This file summarizes AfriPath's App content declarations. For exact Play Console
 1. Privacy policy: provide `https://afripath--afripath.europe-west4.hosted.app/privacy.html`.
 2. Ads: answer `No`.
 3. Sign-in details: answer no restricted access; no login required.
-4. Content ratings: complete as an educational/reference app with no mature content, user interaction, purchases, gambling, or unrestricted internet access.
+4. Content ratings: choose `All Other App Types`; answer `No` to downloaded ratings-relevant mature content, native user content sharing, age-restricted products, precise location sharing, digital goods purchases, cash rewards/crypto/NFTs, and browser/search-engine status. Answer `Yes` to online content because the app loads a public opportunity catalog and opens official external source links. Answer `Yes` to primarily news or educational product.
 5. Target audience and content: answer `18 and over`; not designed for children.
 6. Data safety: answer no collection/sharing of required user data types for this closed-testing build.
 7. Advertising ID: answer `No`; no AD_ID permission, ads, analytics, or attribution SDKs.
